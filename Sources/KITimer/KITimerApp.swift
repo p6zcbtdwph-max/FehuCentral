@@ -2,14 +2,18 @@ import SwiftUI
 
 @main
 struct KITimerApp: App {
-    @StateObject private var tm   = TimeManager()
-    @StateObject private var clip = ClipboardManager()
+    @StateObject private var tm      = TimeManager()
+    @StateObject private var clip    = ClipboardManager()
+    @StateObject private var cal     = CalendarManager()
+    @StateObject private var tracker = ProjectTracker()
 
     var body: some Scene {
         MenuBarExtra {
             MainMenuView()
                 .environmentObject(tm)
                 .environmentObject(clip)
+                .environmentObject(cal)
+                .environmentObject(tracker)
         } label: {
             HStack(spacing: 3) {
                 Image(systemName: tm.menuBarIcon)

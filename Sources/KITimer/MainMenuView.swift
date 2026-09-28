@@ -1,10 +1,12 @@
 import SwiftUI
 
-enum MenuPage { case main, countdowns, intervals, clipboard, settings }
+enum MenuPage { case main, countdowns, calendar, projects, intervals, clipboard, settings }
 
 struct MainMenuView: View {
-    @EnvironmentObject var tm:   TimeManager
-    @EnvironmentObject var clip: ClipboardManager
+    @EnvironmentObject var tm:      TimeManager
+    @EnvironmentObject var clip:    ClipboardManager
+    @EnvironmentObject var cal:     CalendarManager
+    @EnvironmentObject var tracker: ProjectTracker
     @State private var page: MenuPage = .main
 
     var body: some View {
@@ -47,38 +49,36 @@ struct MainMenuView: View {
 
             // Rechte Buttons (nur Hauptseite)
             if page == .main {
-                HStack(spacing: 12) {
+                HStack(spacing: 10) {
                     Button(action: { page = .clipboard }) {
-                        Image(systemName: "doc.on.clipboard")
-                            .imageScale(.medium)
+                        Image(systemName: "doc.on.clipboard").imageScale(.medium)
                     }
-                    .buttonStyle(.plain)
-                    .foregroundStyle(.secondary)
-                    .help("Zwischenablage")
+                    .buttonStyle(.plain).foregroundStyle(.secondary).help("Zwischenablage")
+
+                    Button(action: { page = .calendar }) {
+                        Image(systemName: "calendar").imageScale(.medium)
+                    }
+                    .buttonStyle(.plain).foregroundStyle(.secondary).help("Kalender")
 
                     Button(action: { page = .countdowns }) {
-                        Image(systemName: "calendar.badge.clock")
-                            .imageScale(.medium)
+                        Image(systemName: "calendar.badge.clock").imageScale(.medium)
                     }
-                    .buttonStyle(.plain)
-                    .foregroundStyle(.secondary)
-                    .help("Countdowns")
+                    .buttonStyle(.plain).foregroundStyle(.secondary).help("Countdowns")
+
+                    Button(action: { page = .projects }) {
+                        Image(systemName: "folder.badge.clock").imageScale(.medium)
+                    }
+                    .buttonStyle(.plain).foregroundStyle(.secondary).help("Projekte")
 
                     Button(action: { page = .intervals }) {
-                        Image(systemName: "clock.badge.checkmark")
-                            .imageScale(.medium)
+                        Image(systemName: "clock.badge.checkmark").imageScale(.medium)
                     }
-                    .buttonStyle(.plain)
-                    .foregroundStyle(.secondary)
-                    .help("Intervalle")
+                    .buttonStyle(.plain).foregroundStyle(.secondary).help("Intervalle")
 
                     Button(action: { page = .settings }) {
-                        Image(systemName: "gear")
-                            .imageScale(.medium)
+                        Image(systemName: "gear").imageScale(.medium)
                     }
-                    .buttonStyle(.plain)
-                    .foregroundStyle(.secondary)
-                    .help("Einstellungen")
+                    .buttonStyle(.plain).foregroundStyle(.secondary).help("Einstellungen")
                 }
             }
         }
@@ -90,7 +90,9 @@ struct MainMenuView: View {
         switch page {
         case .main:       return "Fehu Central"
         case .clipboard:  return "Zwischenablage"
+        case .calendar:   return "Kalender"
         case .countdowns: return "Countdowns"
+        case .projects:   return "Projekte"
         case .intervals:  return "Intervalle"
         case .settings:   return "Einstellungen"
         }
@@ -102,7 +104,9 @@ struct MainMenuView: View {
         switch page {
         case .main:       mainContent
         case .clipboard:  ClipboardPage().environmentObject(clip)
+        case .calendar:   CalendarPage().environmentObject(cal)
         case .countdowns: CountdownsPage().environmentObject(tm)
+        case .projects:   ProjectsPage().environmentObject(tracker)
         case .intervals:  IntervalsPage().environmentObject(tm)
         case .settings:   SettingsView().environmentObject(tm)
         }
@@ -150,19 +154,34 @@ struct MainMenuView: View {
                 }
             }
 
+            // Aktiver Kalender-Termin
+            if let ev = cal.activeEvent {
+                Divider()
+                calendarBanner(ev)
+            }
+
             Divider()
 
             // Footer
             HStack {
                 Text(tm.now, style: .time)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .monospacedDigit()
+                    .font(.caption).foregroundStyle(.secondary).monospacedDigit()
                 Spacer()
-                Button("Beenden") { NSApp.terminate(nil) }
-                    .font(.caption)
+                // Laufendes Projekt anzeigen
+                if let p = tracker.activeProject {
+                    Button(action: { page = .projects }) {
+                        HStack(spacing: 3) {
+                            Text(p.emoji).font(.system(size: 11))
+                            Text(tracker.elapsed.hhmmss)
+                                .font(.system(size: 11, weight: .medium, design: .monospaced))
+                                .foregroundStyle(.green)
+                        }
+                    }
                     .buttonStyle(.plain)
-                    .foregroundStyle(.secondary)
+                    Spacer()
+                }
+                Button("Beenden") { NSApp.terminate(nil) }
+                    .font(.caption).buttonStyle(.plain).foregroundStyle(.secondary)
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 8)
@@ -210,4 +229,36 @@ struct MainMenuView: View {
         .padding(.vertical, 8)
     }
 
+    // MARK: - Kalender-Banner
+    private func calendarBanner(_ ev: CalendarEvent) -> some View {
+        HStack(spacing: 10) {
+            RoundedRectangle(cornerRadius: 2)
+                .fill(ev.calendarColor)
+                .frame(width: 3, height: 36)
+
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(spacing: 4) {
+                    Circle().fill(.green).frame(width: 6, height: 6)
+                    Text(ev.title)
+                        .font(.system(size: 13, weight: .semibold)).lineLimit(1)
+                }
+                Text(ev.timeRange)
+                    .font(.system(size: 11)).foregroundStyle(.secondary)
+            }
+
+            Spacer()
+
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    RoundedRectangle(cornerRadius: 2).fill(Color.secondary.opacity(0.15)).frame(height: 4)
+                    RoundedRectangle(cornerRadius: 2).fill(ev.calendarColor)
+                        .frame(width: geo.size.width * ev.progress, height: 4)
+                }
+            }
+            .frame(width: 50, height: 4)
+        }
+        .padding(.horizontal, 16).padding(.vertical, 8)
+        .contentShape(Rectangle())
+        .onTapGesture { page = .calendar }
+    }
 }

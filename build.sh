@@ -30,6 +30,7 @@ cat > "$CONTENTS/Info.plist" << 'EOF'
     <key>NSPrincipalClass</key>           <string>NSApplication</string>
     <key>LSUIElement</key>                <true/>
     <key>NSHighResolutionCapable</key>    <true/>
+    <key>NSCalendarsFullAccessUsageDescription</key> <string>Fehu Central zeigt deine heutigen Termine als Zeitblöcke an.</string>
 </dict>
 </plist>
 EOF
