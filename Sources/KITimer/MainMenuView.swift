@@ -15,7 +15,7 @@ struct MainMenuView: View {
             Divider()
             content
         }
-        .frame(width: 300)
+        .frame(width: 320)
         .animation(.easeInOut(duration: 0.15), value: page)
     }
 
@@ -49,34 +49,34 @@ struct MainMenuView: View {
 
             // Rechte Buttons (nur Hauptseite)
             if page == .main {
-                HStack(spacing: 10) {
+                HStack(spacing: 12) {
                     Button(action: { page = .clipboard }) {
-                        Image(systemName: "doc.on.clipboard").imageScale(.medium)
+                        Image(systemName: "doc.on.clipboard").imageScale(.small)
                     }
                     .buttonStyle(.plain).foregroundStyle(.secondary).help("Zwischenablage")
 
                     Button(action: { page = .calendar }) {
-                        Image(systemName: "calendar").imageScale(.medium)
+                        Image(systemName: "calendar").imageScale(.small)
                     }
                     .buttonStyle(.plain).foregroundStyle(.secondary).help("Kalender")
 
                     Button(action: { page = .countdowns }) {
-                        Image(systemName: "calendar.badge.clock").imageScale(.medium)
+                        Image(systemName: "calendar.badge.clock").imageScale(.small)
                     }
                     .buttonStyle(.plain).foregroundStyle(.secondary).help("Countdowns")
 
                     Button(action: { page = .projects }) {
-                        Image(systemName: "folder.badge.clock").imageScale(.medium)
+                        Image(systemName: "briefcase").imageScale(.small)
                     }
                     .buttonStyle(.plain).foregroundStyle(.secondary).help("Projekte")
 
                     Button(action: { page = .intervals }) {
-                        Image(systemName: "clock.badge.checkmark").imageScale(.medium)
+                        Image(systemName: "clock.badge.checkmark").imageScale(.small)
                     }
                     .buttonStyle(.plain).foregroundStyle(.secondary).help("Intervalle")
 
                     Button(action: { page = .settings }) {
-                        Image(systemName: "gear").imageScale(.medium)
+                        Image(systemName: "gear").imageScale(.small)
                     }
                     .buttonStyle(.plain).foregroundStyle(.secondary).help("Einstellungen")
                 }
