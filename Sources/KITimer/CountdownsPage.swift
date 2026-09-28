@@ -143,17 +143,21 @@ struct CountdownRow: View {
 struct CountdownEditorView: View {
     @State private var name: String
     @State private var date: Date
+    @State private var emoji: String
     let isNew: Bool
     let onSave: (CountdownEvent) -> Void
     let onCancel: () -> Void
 
     private var originalID: UUID
 
+    private let quickEmojis = ["📅","🎉","✈️","🎂","🏖️","🎯","💼","🏁","🎓","❤️","🚀","⚽️","🎁","🏠","🩺"]
+
     init(event: CountdownEvent, isNew: Bool,
          onSave: @escaping (CountdownEvent) -> Void,
          onCancel: @escaping () -> Void) {
-        _name = State(initialValue: event.name == "Neues Datum" && isNew ? "" : event.name)
-        _date = State(initialValue: event.date)
+        _name  = State(initialValue: event.name == "Neues Datum" && isNew ? "" : event.name)
+        _date  = State(initialValue: event.date)
+        _emoji = State(initialValue: event.emoji)
         originalID = event.id
         self.isNew = isNew
         self.onSave = onSave
@@ -162,22 +166,67 @@ struct CountdownEditorView: View {
 
     private var daysPreview: String {
         let d = CountdownEvent(id: originalID, name: name, date: date).daysRemaining()
-        if d < 0  { return "vor \(-d) Tagen"  }
-        if d == 0 { return "Heute"             }
-        if d == 1 { return "Morgen"            }
+        if d < 0  { return "vor \(-d) Tagen" }
+        if d == 0 { return "Heute"           }
+        if d == 1 { return "Morgen"          }
         return "in \(d) Tagen"
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
 
-            VStack(alignment: .leading, spacing: 4) {
-                Text("NAME").font(.system(size: 10, weight: .semibold)).foregroundStyle(.secondary)
-                TextField("z.B. Urlaub, Geburtstag, Abgabe…", text: $name)
-                    .textFieldStyle(.roundedBorder)
-                    .font(.system(size: 13))
+            // Emoji + Name
+            HStack(alignment: .center, spacing: 10) {
+                // Emoji-Picker (Textfeld, ein Zeichen)
+                ZStack {
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(Color.secondary.opacity(0.1))
+                        .frame(width: 44, height: 44)
+                    Text(emoji.isEmpty ? "📅" : emoji)
+                        .font(.system(size: 24))
+                }
+                .onTapGesture { NSApp.orderFrontCharacterPalette(nil) }
+                .help("Emoji auswählen")
+                .overlay(alignment: .bottomTrailing) {
+                    // unsichtbares TextField das den Emoji-Input fängt
+                    TextField("", text: $emoji)
+                        .frame(width: 44, height: 44)
+                        .opacity(0.011)
+                        .onChange(of: emoji) { _, new in
+                            guard !new.isEmpty else { return }
+                            // Emoji kann mehrere Unicode-Skalare haben – ersten "Character" behalten
+                            if let ch = new.last {
+                                emoji = String(ch)
+                            }
+                        }
+                }
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("NAME").font(.system(size: 10, weight: .semibold)).foregroundStyle(.secondary)
+                    TextField("z.B. Urlaub, Geburtstag, Abgabe…", text: $name)
+                        .textFieldStyle(.roundedBorder)
+                        .font(.system(size: 13))
+                }
             }
-            .padding(.horizontal, 16).padding(.top, 14).padding(.bottom, 10)
+            .padding(.horizontal, 16).padding(.top, 14).padding(.bottom, 8)
+
+            // Quick-Emoji-Auswahl
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 6) {
+                    ForEach(quickEmojis, id: \.self) { e in
+                        Button(action: { emoji = e }) {
+                            Text(e)
+                                .font(.system(size: 18))
+                                .frame(width: 32, height: 32)
+                                .background(emoji == e ? Color.accentColor.opacity(0.15) : Color.secondary.opacity(0.07))
+                                .clipShape(RoundedRectangle(cornerRadius: 6))
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .padding(.horizontal, 16)
+            }
+            .padding(.bottom, 10)
 
             Divider()
 
@@ -200,9 +249,10 @@ struct CountdownEditorView: View {
                 Spacer()
                 Button(isNew ? "Speichern" : "Aktualisieren") {
                     var ev = CountdownEvent()
-                    ev.id   = originalID
-                    ev.name = name.trimmingCharacters(in: .whitespaces).isEmpty ? "Datum" : name
-                    ev.date = date
+                    ev.id    = originalID
+                    ev.name  = name.trimmingCharacters(in: .whitespaces).isEmpty ? "Datum" : name
+                    ev.date  = date
+                    ev.emoji = emoji.isEmpty ? "📅" : emoji
                     onSave(ev)
                 }
                 .buttonStyle(.borderedProminent)

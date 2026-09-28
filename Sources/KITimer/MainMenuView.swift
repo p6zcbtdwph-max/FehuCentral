@@ -118,12 +118,6 @@ struct MainMenuView: View {
                 Divider()
             }
 
-            // Nächster Countdown (Banner, wenn vorhanden)
-            if let cd = tm.nextCountdown {
-                countdownBanner(cd)
-                Divider()
-            }
-
             // Pomodoro
             PomodoroSection()
                 .environmentObject(tm)
@@ -132,14 +126,29 @@ struct MainMenuView: View {
 
             Divider()
 
-            // Fortschrittsbalken
-            VStack(spacing: 12) {
-                ProgressRow(label: "Tag",   systemImage: "sun.max.fill",        progress: tm.dayProgress,   remainingText: tm.dayRemainingText)
-                ProgressRow(label: "Woche", systemImage: "calendar.badge.clock", progress: tm.weekProgress,  remainingText: tm.weekRemainingText)
-                ProgressRow(label: "Monat", systemImage: "calendar",             progress: tm.monthProgress, remainingText: tm.monthRemainingText)
-                ProgressRow(label: "Jahr",  systemImage: "arrow.circlepath",     progress: tm.yearProgress,  remainingText: tm.yearRemainingText)
+            // Fortschritts-Ringe
+            HStack(spacing: 0) {
+                CircleRingView(systemImage: "sun.max.fill",        progress: tm.dayProgress,   label: "Tag",   remainingText: tm.dayRemainingText)
+                CircleRingView(systemImage: "calendar.badge.clock", progress: tm.weekProgress,  label: "Woche", remainingText: tm.weekRemainingText)
+                CircleRingView(systemImage: "calendar",             progress: tm.monthProgress, label: "Monat", remainingText: tm.monthRemainingText)
+                CircleRingView(systemImage: "arrow.circlepath",     progress: tm.yearProgress,  label: "Jahr",  remainingText: tm.yearRemainingText)
             }
-            .padding(16)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 14)
+
+            // Countdown-Ringe (wenn vorhanden)
+            if !tm.countdowns.filter({ $0.daysRemaining() >= 0 }).isEmpty {
+                Divider()
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 4) {
+                        ForEach(tm.countdowns.filter { $0.daysRemaining() >= 0 }) { cd in
+                            CountdownCircleView(event: cd) { page = .countdowns }
+                        }
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 12)
+                }
+            }
 
             Divider()
 
@@ -201,39 +210,4 @@ struct MainMenuView: View {
         .padding(.vertical, 8)
     }
 
-    // MARK: - Countdown Banner
-    private func countdownBanner(_ cd: CountdownEvent) -> some View {
-        let days = cd.daysRemaining()
-        let color: Color = days == 0 ? .green : (days <= 3 ? .red : (days <= 7 ? .orange : .purple))
-        let label: String = days == 0 ? "Heute!" : (days == 1 ? "Morgen" : "in \(days) Tagen")
-
-        return HStack(spacing: 10) {
-            RoundedRectangle(cornerRadius: 2)
-                .fill(color)
-                .frame(width: 3, height: 36)
-
-            VStack(alignment: .leading, spacing: 1) {
-                HStack(spacing: 4) {
-                    Image(systemName: "calendar")
-                        .imageScale(.small)
-                        .foregroundStyle(color)
-                    Text(cd.name)
-                        .font(.system(size: 13, weight: .semibold))
-                }
-                Text(cd.displayDate)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-
-            Spacer()
-
-            Text(label)
-                .font(.system(size: 12, weight: .semibold, design: .monospaced))
-                .foregroundStyle(color)
-        }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 8)
-        .contentShape(Rectangle())
-        .onTapGesture { page = .countdowns }
-    }
 }

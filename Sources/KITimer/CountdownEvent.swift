@@ -4,6 +4,7 @@ struct CountdownEvent: Codable, Identifiable, Equatable {
     var id: UUID = UUID()
     var name: String = "Neues Datum"
     var date: Date = Calendar.current.date(byAdding: .day, value: 7, to: Date()) ?? Date()
+    var emoji: String = "📅"
 
     func daysRemaining(from today: Date = Date()) -> Int {
         let cal = Calendar.current
