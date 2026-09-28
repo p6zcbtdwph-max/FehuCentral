@@ -1,31 +1,7 @@
 import SwiftUI
 
-enum MenuPage: CaseIterable {
+enum MenuPage {
     case main, calendar, countdowns, projects, intervals, clipboard, settings
-
-    var label: String {
-        switch self {
-        case .main:       return "Heute"
-        case .calendar:   return "Kalender"
-        case .countdowns: return "Countdown"
-        case .projects:   return "Projekte"
-        case .intervals:  return "Intervalle"
-        case .clipboard:  return "Ablage"
-        case .settings:   return "Einstellungen"
-        }
-    }
-
-    var icon: String {
-        switch self {
-        case .main:       return "house"
-        case .calendar:   return "calendar"
-        case .countdowns: return "calendar.badge.clock"
-        case .projects:   return "briefcase"
-        case .intervals:  return "clock"
-        case .clipboard:  return "doc.on.clipboard"
-        case .settings:   return "gear"
-        }
-    }
 }
 
 struct MainMenuView: View {
@@ -37,68 +13,55 @@ struct MainMenuView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            header
+            topBar
+            Divider()
             content
         }
         .frame(width: 320)
-        .animation(.easeInOut(duration: 0.12), value: page)
+        .animation(.easeInOut(duration: 0.12), value: page == .main)
     }
 
-    // MARK: - Header
+    // MARK: - Obere Leiste (immer sichtbar)
 
-    private var header: some View {
-        VStack(spacing: 0) {
-            // Titel-Zeile
-            HStack(alignment: .center) {
-                if page != .main {
-                    Button(action: { page = .main }) {
-                        Image(systemName: "chevron.left")
-                            .font(.system(size: 13, weight: .semibold))
-                            .foregroundStyle(.secondary)
-                    }
-                    .buttonStyle(.plain)
-                }
-
-                Text(page == .main ? "Fehu Central" : page.label)
-                    .font(.system(size: 15, weight: .semibold))
-                    .frame(maxWidth: .infinity, alignment: page == .main ? .leading : .center)
-
-                // Settings-Icon rechts oben (immer sichtbar)
-                Button(action: { page = page == .settings ? .main : .settings }) {
-                    Image(systemName: "gear")
-                        .font(.system(size: 13))
-                        .foregroundStyle(page == .settings ? .primary : .secondary)
+    private var topBar: some View {
+        HStack(alignment: .center) {
+            if page != .main {
+                Button(action: { page = .main }) {
+                    Image(systemName: "chevron.left")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(.secondary)
                 }
                 .buttonStyle(.plain)
             }
-            .padding(.horizontal, 16)
-            .padding(.top, 14)
-            .padding(.bottom, 10)
 
-            // Tab-Navigation (nur auf Hauptseite)
-            if page == .main {
-                tabBar
-                    .padding(.bottom, 10)
+            Text(pageTitle)
+                .font(.system(size: 15, weight: .semibold))
+                .frame(maxWidth: .infinity, alignment: page == .main ? .leading : .center)
+
+            Button(action: { page = page == .settings ? .main : .settings }) {
+                Image(systemName: "gear")
+                    .font(.system(size: 13))
+                    .foregroundStyle(page == .settings ? Color.accentColor : .secondary)
             }
+            .buttonStyle(.plain)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+    }
 
-            Divider()
+    private var pageTitle: String {
+        switch page {
+        case .main:       return "Fehu Central"
+        case .clipboard:  return "Ablage"
+        case .calendar:   return "Kalender"
+        case .countdowns: return "Countdown"
+        case .projects:   return "Projekte"
+        case .intervals:  return "Intervalle"
+        case .settings:   return "Einstellungen"
         }
     }
 
-    private var tabBar: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 4) {
-                ForEach([MenuPage.calendar, .countdowns, .projects, .intervals, .clipboard], id: \.label) { p in
-                    TabPill(icon: p.icon, label: p.label, isActive: page == p) {
-                        page = p
-                    }
-                }
-            }
-            .padding(.horizontal, 16)
-        }
-    }
-
-    // MARK: - Inhalt je Seite
+    // MARK: - Inhalte
 
     @ViewBuilder
     private var content: some View {
@@ -109,7 +72,7 @@ struct MainMenuView: View {
         case .countdowns: CountdownsPage().environmentObject(tm)
         case .projects:   ProjectsPage().environmentObject(tracker)
         case .intervals:  IntervalsPage().environmentObject(tm)
-        case .settings:   SettingsView().environmentObject(tm)
+        case .settings:   SettingsView().environmentObject(tm).environmentObject(cal)
         }
     }
 
@@ -118,13 +81,13 @@ struct MainMenuView: View {
     private var mainContent: some View {
         VStack(spacing: 0) {
 
-            // Aktiver Kalender-Termin
+            // Banner: laufender Kalendertermin
             if let ev = cal.activeEvent {
                 calendarBanner(ev)
                 Divider()
             }
 
-            // Aktives Intervall
+            // Banner: aktives Intervall
             if let iv = tm.activeInterval {
                 activeBanner(iv)
                 Divider()
@@ -134,7 +97,7 @@ struct MainMenuView: View {
             PomodoroSection()
                 .environmentObject(tm)
                 .padding(.horizontal, 16)
-                .padding(.vertical, 12)
+                .padding(.vertical, 11)
 
             Divider()
 
@@ -146,9 +109,9 @@ struct MainMenuView: View {
                 CircleRingView(systemImage: "arrow.circlepath",     progress: tm.yearProgress,  label: "Jahr",  remainingText: tm.yearRemainingText)
             }
             .padding(.horizontal, 8)
-            .padding(.vertical, 14)
+            .padding(.vertical, 12)
 
-            // Countdown-Ringe
+            // Countdown-Kreise
             let upcoming = tm.countdowns.filter { $0.daysRemaining() >= 0 }
             if !upcoming.isEmpty {
                 Divider()
@@ -159,128 +122,131 @@ struct MainMenuView: View {
                         }
                     }
                     .padding(.horizontal, 14)
-                    .padding(.vertical, 12)
+                    .padding(.vertical, 10)
                 }
             }
 
             Divider()
 
+            // 2-Spalten-Navigation
+            navGrid
+
+            Divider()
+
             // Footer
-            HStack(spacing: 8) {
-                // Laufendes Projekt
+            HStack {
                 if let p = tracker.activeProject {
                     Button(action: { page = .projects }) {
                         HStack(spacing: 4) {
-                            Text(p.emoji).font(.system(size: 12))
+                            Text(p.emoji).font(.system(size: 11))
                             Text(tracker.elapsed.hhmmss)
                                 .font(.system(size: 11, weight: .semibold, design: .monospaced))
                                 .foregroundStyle(.green)
                         }
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 3)
+                        .padding(.horizontal, 8).padding(.vertical, 3)
                         .background(Color.green.opacity(0.1))
                         .clipShape(Capsule())
                     }
                     .buttonStyle(.plain)
                 }
-
                 Spacer()
-
                 Button("Beenden") { NSApp.terminate(nil) }
-                    .font(.system(size: 11))
-                    .buttonStyle(.plain)
-                    .foregroundStyle(.tertiary)
+                    .font(.system(size: 11)).buttonStyle(.plain).foregroundStyle(.tertiary)
             }
             .padding(.horizontal, 16)
-            .padding(.vertical, 9)
+            .padding(.vertical, 8)
         }
     }
 
-    // MARK: - Aktives Intervall Banner
+    // MARK: - 2-Spalten-Nav
+
+    private var navGrid: some View {
+        let items: [(icon: String, label: String, dest: MenuPage)] = [
+            ("calendar",            "Kalender",   .calendar),
+            ("calendar.badge.clock","Countdown",  .countdowns),
+            ("briefcase",           "Projekte",   .projects),
+            ("clock",               "Intervalle", .intervals),
+            ("doc.on.clipboard",    "Ablage",     .clipboard),
+        ]
+
+        return LazyVGrid(
+            columns: [GridItem(.flexible()), GridItem(.flexible())],
+            spacing: 6
+        ) {
+            ForEach(items, id: \.label) { item in
+                NavCard(icon: item.icon, label: item.label) { page = item.dest }
+            }
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+    }
+
+    // MARK: - Banner: Intervall
 
     private func activeBanner(_ iv: TimerInterval) -> some View {
         HStack(spacing: 10) {
-            RoundedRectangle(cornerRadius: 2)
-                .fill(Color.blue)
-                .frame(width: 3, height: 32)
-
+            RoundedRectangle(cornerRadius: 2).fill(Color.blue).frame(width: 3, height: 30)
             VStack(alignment: .leading, spacing: 1) {
-                Text(iv.name)
-                    .font(.system(size: 12, weight: .semibold))
-                Text(tm.intervalRemainingText(iv))
-                    .font(.system(size: 11))
-                    .foregroundStyle(.secondary)
+                Text(iv.name).font(.system(size: 12, weight: .semibold))
+                Text(tm.intervalRemainingText(iv)).font(.system(size: 11)).foregroundStyle(.secondary)
             }
-
             Spacer()
-
             CircularMiniProgress(progress: tm.intervalProgress(iv), color: .blue)
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 8)
+        .padding(.horizontal, 16).padding(.vertical, 7)
     }
 
-    // MARK: - Kalender Banner
+    // MARK: - Banner: Kalender
 
     private func calendarBanner(_ ev: CalendarEvent) -> some View {
         HStack(spacing: 10) {
-            RoundedRectangle(cornerRadius: 2)
-                .fill(ev.calendarColor)
-                .frame(width: 3, height: 32)
-
+            RoundedRectangle(cornerRadius: 2).fill(ev.calendarColor).frame(width: 3, height: 30)
             VStack(alignment: .leading, spacing: 1) {
-                Text(ev.title)
-                    .font(.system(size: 12, weight: .semibold))
-                    .lineLimit(1)
-                Text(ev.timeRange)
-                    .font(.system(size: 11))
-                    .foregroundStyle(.secondary)
+                Text(ev.title).font(.system(size: 12, weight: .semibold)).lineLimit(1)
+                Text(ev.timeRange).font(.system(size: 11)).foregroundStyle(.secondary)
             }
-
             Spacer()
-
             CircularMiniProgress(progress: ev.progress, color: ev.calendarColor)
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 8)
+        .padding(.horizontal, 16).padding(.vertical, 7)
         .contentShape(Rectangle())
         .onTapGesture { page = .calendar }
     }
 }
 
-// MARK: - Tab-Pill
+// MARK: - Nav-Karte
 
-struct TabPill: View {
+struct NavCard: View {
     let icon: String
     let label: String
-    let isActive: Bool
     let action: () -> Void
     @State private var hovered = false
 
     var body: some View {
         Button(action: action) {
-            HStack(spacing: 4) {
+            HStack(spacing: 8) {
                 Image(systemName: icon)
-                    .font(.system(size: 11, weight: .medium))
+                    .font(.system(size: 13, weight: .medium))
+                    .frame(width: 18)
                 Text(label)
-                    .font(.system(size: 11, weight: .medium))
+                    .font(.system(size: 12, weight: .medium))
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 10))
+                    .foregroundStyle(.tertiary)
             }
-            .padding(.horizontal, 9)
-            .padding(.vertical, 5)
-            .background(
-                isActive
-                    ? Color.accentColor.opacity(0.15)
-                    : (hovered ? Color.secondary.opacity(0.1) : Color.clear)
-            )
-            .foregroundStyle(isActive ? Color.accentColor : .secondary)
-            .clipShape(Capsule())
+            .padding(.horizontal, 11)
+            .padding(.vertical, 9)
+            .background(hovered ? Color.secondary.opacity(0.12) : Color.secondary.opacity(0.07))
+            .foregroundStyle(hovered ? .primary : .secondary)
+            .clipShape(RoundedRectangle(cornerRadius: 9))
         }
         .buttonStyle(.plain)
         .onHover { hovered = $0 }
     }
 }
 
-// MARK: - Mini-Kreisfortschritt für Banner
+// MARK: - Mini-Kreisfortschritt
 
 struct CircularMiniProgress: View {
     let progress: Double
@@ -288,8 +254,7 @@ struct CircularMiniProgress: View {
 
     var body: some View {
         ZStack {
-            Circle()
-                .stroke(color.opacity(0.15), lineWidth: 3)
+            Circle().stroke(color.opacity(0.15), lineWidth: 3)
             Circle()
                 .trim(from: 0, to: progress)
                 .stroke(color, style: StrokeStyle(lineWidth: 3, lineCap: .round))
