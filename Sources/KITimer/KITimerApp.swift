@@ -6,6 +6,7 @@ struct KITimerApp: App {
     @StateObject private var clip    = ClipboardManager()
     @StateObject private var cal     = CalendarManager()
     @StateObject private var tracker = ProjectTracker()
+    @StateObject private var gam     = GamificationManager()
 
     var body: some Scene {
         MenuBarExtra {
@@ -14,6 +15,7 @@ struct KITimerApp: App {
                 .environmentObject(clip)
                 .environmentObject(cal)
                 .environmentObject(tracker)
+                .environmentObject(gam)
         } label: {
             HStack(spacing: 3) {
                 Image(systemName: tm.menuBarIcon)

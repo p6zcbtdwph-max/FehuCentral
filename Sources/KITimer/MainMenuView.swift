@@ -1,7 +1,7 @@
 import SwiftUI
 
 enum MenuPage {
-    case main, calendar, countdowns, projects, intervals, clipboard, settings
+    case main, calendar, countdowns, projects, intervals, clipboard, settings, gamification
 }
 
 struct MainMenuView: View {
@@ -9,6 +9,7 @@ struct MainMenuView: View {
     @EnvironmentObject var clip:    ClipboardManager
     @EnvironmentObject var cal:     CalendarManager
     @EnvironmentObject var tracker: ProjectTracker
+    @EnvironmentObject var gam:     GamificationManager
     @State private var page: MenuPage = .main
 
     var body: some View {
@@ -51,13 +52,14 @@ struct MainMenuView: View {
 
     private var pageTitle: String {
         switch page {
-        case .main:       return "Fehu Central"
-        case .clipboard:  return "Ablage"
-        case .calendar:   return "Kalender"
-        case .countdowns: return "Countdown"
-        case .projects:   return "Projekte"
-        case .intervals:  return "Intervalle"
-        case .settings:   return "Einstellungen"
+        case .main:          return "Fehu Central"
+        case .clipboard:     return "Ablage"
+        case .calendar:      return "Kalender"
+        case .countdowns:    return "Countdown"
+        case .projects:      return "Projekte"
+        case .intervals:     return "Intervalle"
+        case .settings:      return "Einstellungen"
+        case .gamification:  return "Aktivitäten"
         }
     }
 
@@ -72,7 +74,8 @@ struct MainMenuView: View {
         case .countdowns: CountdownsPage().environmentObject(tm)
         case .projects:   ProjectsPage().environmentObject(tracker)
         case .intervals:  IntervalsPage().environmentObject(tm)
-        case .settings:   SettingsView(navigate: { page = $0 }).environmentObject(tm).environmentObject(cal)
+        case .settings:      SettingsView(navigate: { page = $0 }).environmentObject(tm).environmentObject(cal)
+        case .gamification:  GamificationPage().environmentObject(gam).environmentObject(cal)
         }
     }
 
@@ -124,6 +127,12 @@ struct MainMenuView: View {
                     .padding(.horizontal, 14)
                     .padding(.vertical, 10)
                 }
+            }
+
+            // Gamification-Strip (nur wenn Kalender-Zugriff vorhanden)
+            if cal.authStatus == .fullAccess && !gam.activities.isEmpty {
+                Divider()
+                gamificationStrip
             }
 
             Divider()
@@ -181,6 +190,71 @@ struct MainMenuView: View {
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 10)
+    }
+
+    // MARK: - Gamification-Strip
+
+    private var gamificationStrip: some View {
+        Button(action: { page = .gamification }) {
+            HStack(spacing: 10) {
+                // Level-Badge
+                ZStack {
+                    Circle()
+                        .fill(Color.yellow.opacity(0.15))
+                        .frame(width: 32, height: 32)
+                    VStack(spacing: 0) {
+                        Text("⭐").font(.system(size: 10))
+                        Text("\(gam.level)")
+                            .font(.system(size: 11, weight: .bold))
+                    }
+                }
+
+                VStack(alignment: .leading, spacing: 3) {
+                    HStack(spacing: 6) {
+                        Text("Level \(gam.level)")
+                            .font(.system(size: 11, weight: .semibold))
+                        Text("·")
+                            .foregroundStyle(.tertiary)
+                        Text("🔥 \(gam.streak) Tage")
+                            .font(.system(size: 11))
+                            .foregroundStyle(.orange)
+                    }
+                    GeometryReader { geo in
+                        ZStack(alignment: .leading) {
+                            RoundedRectangle(cornerRadius: 3)
+                                .fill(Color.secondary.opacity(0.12))
+                                .frame(height: 5)
+                            RoundedRectangle(cornerRadius: 3)
+                                .fill(Color.yellow.opacity(0.75))
+                                .frame(width: geo.size.width * gam.levelProgress, height: 5)
+                        }
+                    }
+                    .frame(height: 5)
+                }
+
+                Spacer()
+
+                // Top-Aktivität
+                if let top = gam.activities.first {
+                    VStack(alignment: .trailing, spacing: 1) {
+                        Text("\(top.count)×")
+                            .font(.system(size: 11, weight: .semibold))
+                        Text(top.title)
+                            .font(.system(size: 9))
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    }
+                    .frame(maxWidth: 80)
+                }
+
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 10))
+                    .foregroundStyle(.tertiary)
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 8)
+        }
+        .buttonStyle(.plain)
     }
 
     // MARK: - Mini-Projekte
