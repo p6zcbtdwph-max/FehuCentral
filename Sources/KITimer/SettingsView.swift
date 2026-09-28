@@ -4,6 +4,7 @@ import EventKit
 struct SettingsView: View {
     @EnvironmentObject var tm:  TimeManager
     @EnvironmentObject var cal: CalendarManager
+    var navigate: (MenuPage) -> Void = { _ in }
     @State private var tab: SettingsTab = .arbeitszeit
 
     enum SettingsTab: String, CaseIterable {
@@ -15,6 +16,10 @@ struct SettingsView: View {
 
     var body: some View {
         VStack(spacing: 0) {
+            // Werkzeuge-Sektion
+            werkzeugSection
+            Divider()
+
             // Tab-Leiste
             HStack(spacing: 0) {
                 ForEach(SettingsTab.allCases, id: \.self) { t in
@@ -49,6 +54,26 @@ struct SettingsView: View {
                 }
                 .padding(.top, 10)
             }
+        }
+    }
+
+    // MARK: - Werkzeuge
+
+    private var werkzeugSection: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text("Werkzeuge".uppercased())
+                .font(.system(size: 10, weight: .semibold))
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, 16)
+                .padding(.top, 10)
+                .padding(.bottom, 6)
+
+            HStack(spacing: 8) {
+                NavCard(icon: "calendar", label: "Kalender") { navigate(.calendar) }
+                NavCard(icon: "clock",    label: "Intervalle") { navigate(.intervals) }
+            }
+            .padding(.horizontal, 12)
+            .padding(.bottom, 10)
         }
     }
 

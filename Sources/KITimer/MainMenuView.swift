@@ -72,7 +72,7 @@ struct MainMenuView: View {
         case .countdowns: CountdownsPage().environmentObject(tm)
         case .projects:   ProjectsPage().environmentObject(tracker)
         case .intervals:  IntervalsPage().environmentObject(tm)
-        case .settings:   SettingsView().environmentObject(tm).environmentObject(cal)
+        case .settings:   SettingsView(navigate: { page = $0 }).environmentObject(tm).environmentObject(cal)
         }
     }
 
@@ -128,6 +128,11 @@ struct MainMenuView: View {
 
             Divider()
 
+            // Inline-Projekte
+            miniProjectsSection
+
+            Divider()
+
             // 2-Spalten-Navigation
             navGrid
 
@@ -162,11 +167,8 @@ struct MainMenuView: View {
 
     private var navGrid: some View {
         let items: [(icon: String, label: String, dest: MenuPage)] = [
-            ("calendar",            "Kalender",   .calendar),
-            ("calendar.badge.clock","Countdown",  .countdowns),
-            ("briefcase",           "Projekte",   .projects),
-            ("clock",               "Intervalle", .intervals),
-            ("doc.on.clipboard",    "Ablage",     .clipboard),
+            ("calendar.badge.clock", "Countdown", .countdowns),
+            ("doc.on.clipboard",     "Ablage",    .clipboard),
         ]
 
         return LazyVGrid(
@@ -179,6 +181,47 @@ struct MainMenuView: View {
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 10)
+    }
+
+    // MARK: - Mini-Projekte
+
+    private var miniProjectsSection: some View {
+        VStack(spacing: 0) {
+            HStack {
+                Text("Projekte".uppercased())
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Button(action: { page = .projects }) {
+                    HStack(spacing: 2) {
+                        Text("Alle")
+                        Image(systemName: "chevron.right").imageScale(.small)
+                    }
+                    .font(.system(size: 11))
+                    .foregroundStyle(Color.accentColor)
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(.horizontal, 16)
+            .padding(.top, 10)
+            .padding(.bottom, 4)
+
+            if tracker.projects.isEmpty {
+                Button(action: { page = .projects }) {
+                    Label("Erstes Projekt anlegen", systemImage: "plus.circle")
+                        .font(.system(size: 12))
+                        .foregroundStyle(Color.accentColor)
+                }
+                .buttonStyle(.plain)
+                .padding(.horizontal, 16)
+                .padding(.bottom, 10)
+            } else {
+                ForEach(tracker.projects.prefix(3)) { project in
+                    MiniProjectRow(project: project)
+                        .environmentObject(tracker)
+                }
+            }
+        }
     }
 
     // MARK: - Banner: Intervall
@@ -240,6 +283,53 @@ struct NavCard: View {
             .background(hovered ? Color.secondary.opacity(0.12) : Color.secondary.opacity(0.07))
             .foregroundStyle(hovered ? .primary : .secondary)
             .clipShape(RoundedRectangle(cornerRadius: 9))
+        }
+        .buttonStyle(.plain)
+        .onHover { hovered = $0 }
+    }
+}
+
+// MARK: - Mini-Projektzeile
+
+struct MiniProjectRow: View {
+    let project: Project
+    @EnvironmentObject var tracker: ProjectTracker
+    @State private var hovered = false
+
+    private var isActive: Bool { tracker.activeProject?.id == project.id }
+
+    var body: some View {
+        Button(action: { tracker.toggle(project) }) {
+            HStack(spacing: 10) {
+                Text(project.emoji).font(.system(size: 16))
+
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(project.name)
+                        .font(.system(size: 12, weight: isActive ? .semibold : .regular))
+                        .foregroundStyle(.primary)
+                    Text(isActive ? tracker.elapsed.hhmmss : tracker.todayDuration(for: project).hhmm)
+                        .font(.system(size: 10, design: .monospaced))
+                        .foregroundStyle(isActive ? Color.green : Color.secondary.opacity(0.5))
+                }
+
+                Spacer()
+
+                ZStack {
+                    Circle()
+                        .fill(isActive ? Color.green.opacity(0.15) : Color.secondary.opacity(0.1))
+                        .frame(width: 26, height: 26)
+                    Image(systemName: isActive ? "stop.fill" : "play.fill")
+                        .font(.system(size: 9))
+                        .foregroundStyle(isActive ? .green : .secondary)
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 6)
+            .background(
+                isActive
+                    ? Color.green.opacity(0.05)
+                    : (hovered ? Color.secondary.opacity(0.05) : Color.clear)
+            )
         }
         .buttonStyle(.plain)
         .onHover { hovered = $0 }
