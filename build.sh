@@ -4,11 +4,11 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 cd "$SCRIPT_DIR"
 
-echo "→ Baue Productivity Timer..."
+echo "→ Baue Fehu Central..."
 swift build -c release 2>&1
 
 echo "→ Erstelle App-Bundle..."
-APP="$HOME/Applications/ProductivityTimer.app"
+APP="$HOME/Applications/FehuCentral.app"
 CONTENTS="$APP/Contents"
 mkdir -p "$CONTENTS/MacOS"
 mkdir -p "$CONTENTS/Resources"
@@ -22,9 +22,9 @@ cat > "$CONTENTS/Info.plist" << 'EOF'
 <plist version="1.0">
 <dict>
     <key>CFBundleExecutable</key>         <string>KITimer</string>
-    <key>CFBundleIdentifier</key>         <string>de.ki.productivity-timer</string>
-    <key>CFBundleName</key>               <string>Productivity Timer</string>
-    <key>CFBundleDisplayName</key>        <string>Productivity Timer</string>
+    <key>CFBundleIdentifier</key>         <string>de.fehu.central</string>
+    <key>CFBundleName</key>               <string>Fehu Central</string>
+    <key>CFBundleDisplayName</key>        <string>Fehu Central</string>
     <key>CFBundleVersion</key>            <string>1.0</string>
     <key>CFBundleShortVersionString</key> <string>1.0</string>
     <key>NSPrincipalClass</key>           <string>NSApplication</string>
@@ -35,9 +35,10 @@ cat > "$CONTENTS/Info.plist" << 'EOF'
 EOF
 
 # Laufende Instanz beenden
+pkill -f "FehuCentral.app/Contents/MacOS/KITimer" 2>/dev/null || true
 pkill -f "ProductivityTimer.app/Contents/MacOS/KITimer" 2>/dev/null || true
 pkill -f "KITimer.app/Contents/MacOS/KITimer" 2>/dev/null || true
 
-echo "→ Starte Productivity Timer..."
+echo "→ Starte Fehu Central..."
 open "$APP"
-echo "✓ Fertig! Productivity Timer läuft in der Menüleiste."
+echo "✓ Fertig! Fehu Central läuft in der Menüleiste."

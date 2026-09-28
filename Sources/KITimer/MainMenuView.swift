@@ -88,7 +88,7 @@ struct MainMenuView: View {
 
     private var pageTitle: String {
         switch page {
-        case .main:       return "Productivity Timer"
+        case .main:       return "Fehu Central"
         case .clipboard:  return "Zwischenablage"
         case .countdowns: return "Countdowns"
         case .intervals:  return "Intervalle"

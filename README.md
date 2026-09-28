@@ -1,6 +1,6 @@
-# Productivity Timer
+# Fehu Central
 
-A native macOS menubar app for daily productivity tracking. Built with Swift and SwiftUI — no Xcode required, just the Swift toolchain.
+A native macOS menubar app for daily productivity. Built with Swift and SwiftUI — no Xcode required, just the Swift toolchain.
 
 ![macOS 14+](https://img.shields.io/badge/macOS-14%2B-blue) ![Swift 6](https://img.shields.io/badge/Swift-6-orange) ![License: MIT](https://img.shields.io/badge/License-MIT-green)
 
