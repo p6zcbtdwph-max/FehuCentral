@@ -78,6 +78,43 @@ class TimeManager: ObservableObject {
         }
     }
 
+    // MARK: - Countdowns
+    var countdowns: [CountdownEvent] {
+        get {
+            guard let data = UserDefaults.standard.data(forKey: "countdowns"),
+                  let list = try? JSONDecoder().decode([CountdownEvent].self, from: data)
+            else { return [] }
+            return list.sorted { $0.date < $1.date }
+        }
+        set {
+            if let data = try? JSONEncoder().encode(newValue) {
+                UserDefaults.standard.set(data, forKey: "countdowns")
+                objectWillChange.send()
+            }
+        }
+    }
+
+    func addCountdown(_ event: CountdownEvent) {
+        var list = countdowns
+        list.append(event)
+        countdowns = list
+    }
+
+    func updateCountdown(_ event: CountdownEvent) {
+        var list = countdowns
+        if let i = list.firstIndex(where: { $0.id == event.id }) { list[i] = event }
+        countdowns = list
+    }
+
+    func deleteCountdown(id: UUID) {
+        countdowns = countdowns.filter { $0.id != id }
+    }
+
+    // nächstes Countdown-Event in der Zukunft (für Banner auf Hauptseite)
+    var nextCountdown: CountdownEvent? {
+        countdowns.first { $0.daysRemaining() >= 0 }
+    }
+
     // MARK: - Timer
     private var mainTick: AnyCancellable?
     private let notifCenter = UNUserNotificationCenter.current()

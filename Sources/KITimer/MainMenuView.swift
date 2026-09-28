@@ -1,6 +1,6 @@
 import SwiftUI
 
-enum MenuPage { case main, intervals, clipboard, settings }
+enum MenuPage { case main, countdowns, intervals, clipboard, settings }
 
 struct MainMenuView: View {
     @EnvironmentObject var tm:   TimeManager
@@ -56,6 +56,14 @@ struct MainMenuView: View {
                     .foregroundStyle(.secondary)
                     .help("Zwischenablage")
 
+                    Button(action: { page = .countdowns }) {
+                        Image(systemName: "calendar.badge.clock")
+                            .imageScale(.medium)
+                    }
+                    .buttonStyle(.plain)
+                    .foregroundStyle(.secondary)
+                    .help("Countdowns")
+
                     Button(action: { page = .intervals }) {
                         Image(systemName: "clock.badge.checkmark")
                             .imageScale(.medium)
@@ -80,10 +88,11 @@ struct MainMenuView: View {
 
     private var pageTitle: String {
         switch page {
-        case .main:      return "Productivity Timer"
-        case .clipboard: return "Zwischenablage"
-        case .intervals: return "Intervalle"
-        case .settings:  return "Einstellungen"
+        case .main:       return "Productivity Timer"
+        case .clipboard:  return "Zwischenablage"
+        case .countdowns: return "Countdowns"
+        case .intervals:  return "Intervalle"
+        case .settings:   return "Einstellungen"
         }
     }
 
@@ -91,10 +100,11 @@ struct MainMenuView: View {
     @ViewBuilder
     private var content: some View {
         switch page {
-        case .main:      mainContent
-        case .clipboard: ClipboardPage().environmentObject(clip)
-        case .intervals: IntervalsPage().environmentObject(tm)
-        case .settings:  SettingsView().environmentObject(tm)
+        case .main:       mainContent
+        case .clipboard:  ClipboardPage().environmentObject(clip)
+        case .countdowns: CountdownsPage().environmentObject(tm)
+        case .intervals:  IntervalsPage().environmentObject(tm)
+        case .settings:   SettingsView().environmentObject(tm)
         }
     }
 
@@ -105,6 +115,12 @@ struct MainMenuView: View {
             // Aktives Intervall (Banner, wenn vorhanden)
             if let iv = tm.activeInterval {
                 activeBanner(iv)
+                Divider()
+            }
+
+            // Nächster Countdown (Banner, wenn vorhanden)
+            if let cd = tm.nextCountdown {
+                countdownBanner(cd)
                 Divider()
             }
 
@@ -183,5 +199,41 @@ struct MainMenuView: View {
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 8)
+    }
+
+    // MARK: - Countdown Banner
+    private func countdownBanner(_ cd: CountdownEvent) -> some View {
+        let days = cd.daysRemaining()
+        let color: Color = days == 0 ? .green : (days <= 3 ? .red : (days <= 7 ? .orange : .purple))
+        let label: String = days == 0 ? "Heute!" : (days == 1 ? "Morgen" : "in \(days) Tagen")
+
+        return HStack(spacing: 10) {
+            RoundedRectangle(cornerRadius: 2)
+                .fill(color)
+                .frame(width: 3, height: 36)
+
+            VStack(alignment: .leading, spacing: 1) {
+                HStack(spacing: 4) {
+                    Image(systemName: "calendar")
+                        .imageScale(.small)
+                        .foregroundStyle(color)
+                    Text(cd.name)
+                        .font(.system(size: 13, weight: .semibold))
+                }
+                Text(cd.displayDate)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            Spacer()
+
+            Text(label)
+                .font(.system(size: 12, weight: .semibold, design: .monospaced))
+                .foregroundStyle(color)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 8)
+        .contentShape(Rectangle())
+        .onTapGesture { page = .countdowns }
     }
 }
