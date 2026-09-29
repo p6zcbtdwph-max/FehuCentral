@@ -1,76 +1,114 @@
 # Fehu Central
 
-A native macOS menubar app for daily productivity. Built with Swift and SwiftUI — no Xcode required, just the Swift toolchain.
+Native macOS menubar app for daily time awareness and productivity tracking. Built with Swift 6 and SwiftUI — no Xcode required.
 
 ![macOS 14+](https://img.shields.io/badge/macOS-14%2B-blue) ![Swift 6](https://img.shields.io/badge/Swift-6-orange) ![License: MIT](https://img.shields.io/badge/License-MIT-green)
 
+---
+
+## What it does
+
+The menubar shows a live countdown to the end of your workday, next to the Fehu rune (ᚠ). Opening the popup gives you a full picture of where you stand in the day, week, month, and year — plus everything else.
+
 ## Features
 
-- **Day progress** — menubar shows remaining time for your workday at a glance
-- **Progress bars** — Day / Week / Month / Year progress in a clean popup
-- **Configurable hours** — separate start/end times for weekdays and weekends
-- **Notifications** — alerts at 2h, 1h, and 30min before day end
-- **Pomodoro timer** — configurable focus (5–90 min) and rest (1–30 min) phases, visible in menubar
-- **Custom intervals** — named time blocks (e.g. "Deep Work 09:00–11:00") with live countdown and progress
-- **Clipboard manager** — auto-history, saved snippets, search, and password protection
-- **Auto-start on login** — via macOS Login Items
+**Time & Progress**
+- Live countdown in the menubar (hours and minutes until workday end)
+- Progress rings for Day / Week / Month / Year — percentage plus days remaining inside each ring
+- Color shifts from green → orange → red as time runs out
+
+**Calendar**
+- Reads today's events from macOS Calendar
+- Active event shown as a banner with a live progress bar
+- Full event list accessible from the popup
+
+**Gamification**
+- Analyzes calendar history to build a list of recurring activities
+- Each activity earns XP based on time spent (configurable XP/h rate)
+- Bronze → Silver → Gold → Platinum → Diamond rank system across 20 levels
+- Activities can be renamed, merged, or blacklisted directly from the popup
+
+**Countdown events**
+- Named dates shown as circular countdown rings (e.g. birthdays, deadlines, trips)
+- Color-coded by urgency: green on the day, red within 3 days
+
+**Pomodoro timer**
+- Focus and break phases, configurable length
+- Active session visible as a pill in the topbar
+
+**Intervals**
+- Named time blocks tied to a clock range (e.g. "Deep Work 09:00–11:00")
+- Live progress bar and countdown when active
+- Active interval shown as a banner in the popup
+
+**Clipboard manager**
+- Auto-records clipboard history
+- Save entries as permanent snippets with optional labels
+- Search across history and snippets
+- Automatically skips password manager entries
+
+---
 
 ## Requirements
 
 - macOS 14 (Sonoma) or later
-- Swift toolchain (comes with Xcode Command Line Tools)
+- Swift toolchain — install via `xcode-select --install`
 
-## Build & Run
+---
+
+## Build & Install
 
 ```bash
-# Build and install to ~/Applications/
 chmod +x build.sh
 ./build.sh
 ```
 
-The script compiles a release build, creates the app bundle at `~/Applications/ProductivityTimer.app`, and launches it.
+Compiles a release build, creates the app bundle at `~/Applications/FehuCentral.app`, and launches it. The version number is read from `VERSION` and written into `Info.plist` automatically.
 
-## Auto-start on Login
+---
+
+## Releasing a new version
 
 ```bash
-chmod +x setup_autostart.sh
-./setup_autostart.sh
+# Patch release: 2.0.0 → 2.0.1
+./release.sh patch
+
+# Minor release: 2.0.0 → 2.1.0
+./release.sh minor
+
+# Major release: 2.0.0 → 3.0.0
+./release.sh major
+
+# Release without bumping (use current VERSION as-is)
+./release.sh
 ```
 
-Adds the app to macOS Login Items using `osascript` (no `launchctl` permissions needed).
+The script bumps `VERSION`, builds the app, zips the bundle, creates a git tag, pushes, and publishes a GitHub release with the zip attached.
+
+---
 
 ## Project Structure
 
 ```
 Sources/KITimer/
-├── KITimerApp.swift        # @main entry point, MenuBarExtra
-├── TimeManager.swift       # All time calculations, Pomodoro, intervals, notifications
-├── TimerInterval.swift     # Codable model for named time blocks
-├── ClipboardManager.swift  # Clipboard polling, history, snippets, password safety
-├── MainMenuView.swift      # Root view with page navigation
-├── PomodoroSection.swift   # Pomodoro UI component
-├── IntervalsPage.swift     # Intervals list and editor
-├── ClipboardPage.swift     # Clipboard history and snippets UI
-├── ProgressRow.swift       # Reusable progress bar row
-└── SettingsView.swift      # Settings page
+├── KITimerApp.swift          # @main entry, MenuBarExtra label
+├── MainMenuView.swift        # Root view, page navigation, topbar
+├── TimeManager.swift         # Workday progress, Pomodoro, intervals, notifications
+├── CalendarManager.swift     # EventKit integration, permission handling
+├── GamificationManager.swift # XP, levels, ranks, activity tracking
+├── ClipboardManager.swift    # Clipboard polling, history, snippets
+├── CircleRingView.swift      # Progress rings and countdown circles
+├── FehuRune.swift            # Custom Path-drawn Fehu rune icon
+├── GamificationPage.swift    # Activitiy list, XP editor, merge UI
+├── CalendarPage.swift        # Today's event list
+├── CountdownsPage.swift      # Countdown list and editor
+├── IntervalsPage.swift       # Interval list and editor
+├── ClipboardPage.swift       # Clipboard history and snippets UI
+├── PomodoroSection.swift     # Pomodoro UI
+└── SettingsView.swift        # Settings
 ```
 
-## Configuration
-
-All settings are accessible from the gear icon in the popup:
-
-| Setting | Default |
-|---|---|
-| Workday start | 09:00 |
-| Workday end | 18:00 |
-| Weekend hours | configurable |
-| Pomodoro focus | 25 min |
-| Pomodoro rest | 5 min |
-| Notifications | 2h, 1h, 30min before day end |
-
-## Clipboard Safety
-
-The clipboard manager automatically skips entries flagged by password managers (`org.nspasteboard.ConcealedType` and similar). You can also pause recording manually at any time.
+---
 
 ## License
 
