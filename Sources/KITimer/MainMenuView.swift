@@ -18,6 +18,7 @@ struct MainMenuView: View {
             content
         }
         .frame(width: 320)
+        .background(Color(NSColor.windowBackgroundColor))
         .animation(.easeInOut(duration: 0.12), value: page == .main)
     }
 

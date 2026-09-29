@@ -16,11 +16,11 @@ struct KITimerApp: App {
                 .environmentObject(gam)
         } label: {
             HStack(spacing: 3) {
-                Text("ᚠ")
-                    .font(.system(size: 13, weight: .semibold))
                 Text(tm.menuBarText)
                     .monospacedDigit()
                     .font(.system(size: 12, weight: .medium))
+                Text("ᚠ")
+                    .font(.system(size: 13, weight: .semibold))
             }
         }
         .menuBarExtraStyle(.window)

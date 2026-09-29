@@ -8,14 +8,20 @@ struct GamificationPage: View {
     var body: some View {
         if cal.authStatus != .fullAccess {
             noAccessView
-        } else if gam.activities.isEmpty {
+        } else if gam.activities.isEmpty && gam.blacklist.isEmpty {
             emptyView
         } else {
             ScrollView {
                 VStack(spacing: 0) {
-                    headerCard
-                    Divider()
-                    activityList
+                    if !gam.activities.isEmpty {
+                        headerCard
+                        Divider()
+                        activityList
+                    }
+                    if !gam.blacklist.isEmpty {
+                        Divider()
+                        blacklistSection
+                    }
                     Spacer().frame(height: 12)
                 }
             }
@@ -27,15 +33,14 @@ struct GamificationPage: View {
 
     private var headerCard: some View {
         VStack(spacing: 12) {
-            // Rang + Level
             HStack(alignment: .center) {
                 VStack(alignment: .leading, spacing: 3) {
                     HStack(spacing: 8) {
-                        rankBadge(gam.rank, size: .large)
+                        tierBadge(gam.rank, large: true)
                         VStack(alignment: .leading, spacing: 1) {
                             Text("Level \(gam.overallLevel)")
                                 .font(.system(size: 20, weight: .bold))
-                            Text(gam.rank.name)
+                            Text("\(gam.rank.name) \(gam.rank.roman)")
                                 .font(.system(size: 12))
                                 .foregroundStyle(rankColor(gam.rank))
                         }
@@ -75,8 +80,10 @@ struct GamificationPage: View {
                     if let next = gam.rank.nextRankLevel {
                         Text("→ \(GamificationManager.rankInfo(forLevel: next).name) ab Level \(next)")
                             .font(.system(size: 10)).foregroundStyle(.secondary)
+                    } else if gam.overallLevel < 20 {
+                        EmptyView()
                     } else {
-                        Text("Maximaler Rang erreicht")
+                        Text("Level \(gam.overallLevel + 1) in \(GamificationManager.xpNeeded(toReach: gam.overallLevel + 1) - gam.totalXP) XP")
                             .font(.system(size: 10)).foregroundStyle(.secondary)
                     }
                 }
@@ -124,6 +131,75 @@ struct GamificationPage: View {
         }
     }
 
+    // MARK: - Blacklist
+
+    private var blacklistSection: some View {
+        VStack(spacing: 0) {
+            HStack {
+                Text("Gesperrt".uppercased())
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(.secondary)
+                Spacer()
+            }
+            .padding(.horizontal, 16)
+            .padding(.top, 12)
+            .padding(.bottom, 4)
+
+            ForEach(Array(gam.blacklist).sorted(), id: \.self) { title in
+                HStack(spacing: 10) {
+                    Image(systemName: "nosign")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.red.opacity(0.5))
+                    Text(title)
+                        .font(.system(size: 12))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                    Spacer()
+                    Button(action: { gam.removeFromBlacklist(title) }) {
+                        Text("Entsperren")
+                            .font(.system(size: 11))
+                            .foregroundStyle(Color.accentColor)
+                    }
+                    .buttonStyle(.plain)
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 5)
+            }
+            .padding(.bottom, 4)
+        }
+    }
+
+    // MARK: - Rang-Badge
+
+    private func tierBadge(_ rank: GamificationManager.RankInfo, large: Bool) -> some View {
+        let dim: CGFloat = large ? 44 : 28
+        let color = rankColor(rank)
+        return ZStack {
+            Circle()
+                .fill(color.opacity(0.15))
+                .frame(width: dim, height: dim)
+            VStack(spacing: large ? 0 : -1) {
+                Text(rank.name.prefix(large ? 2 : 1).uppercased())
+                    .font(.system(size: large ? 9 : 7, weight: .semibold))
+                    .foregroundStyle(color.opacity(0.8))
+                Text(rank.roman)
+                    .font(.system(size: large ? 14 : 10, weight: .bold))
+                    .foregroundStyle(color)
+            }
+        }
+    }
+
+    private func rankColor(_ rank: GamificationManager.RankInfo) -> Color {
+        switch rank.name {
+        case "Bronze":  return Color(red: 0.80, green: 0.52, blue: 0.25)
+        case "Silber":  return Color(red: 0.65, green: 0.65, blue: 0.70)
+        case "Gold":    return Color(red: 1.00, green: 0.78, blue: 0.00)
+        case "Platin":  return Color(red: 0.40, green: 0.82, blue: 1.00)
+        case "Diamant": return Color(red: 0.60, green: 0.40, blue: 1.00)
+        default:        return .secondary
+        }
+    }
+
     // MARK: - Hilfselemente
 
     private func statChip(_ value: String, _ label: String) -> some View {
@@ -134,29 +210,6 @@ struct GamificationPage: View {
         .frame(maxWidth: .infinity).padding(.vertical, 6)
         .background(Color.secondary.opacity(0.07))
         .clipShape(RoundedRectangle(cornerRadius: 8))
-    }
-
-    private func rankBadge(_ rank: GamificationManager.RankInfo, size: BadgeSize) -> some View {
-        ZStack {
-            Circle()
-                .fill(rankColor(rank).opacity(0.15))
-                .frame(width: size == .large ? 44 : 28, height: size == .large ? 44 : 28)
-            Text(rank.roman)
-                .font(.system(size: size == .large ? 16 : 11, weight: .bold))
-                .foregroundStyle(rankColor(rank))
-        }
-    }
-
-    enum BadgeSize { case large, small }
-
-    private func rankColor(_ rank: GamificationManager.RankInfo) -> Color {
-        switch rank.roman {
-        case "I":   return .secondary
-        case "II":  return .blue
-        case "III": return .green
-        case "IV":  return .purple
-        default:    return Color(red: 1, green: 0.78, blue: 0)
-        }
     }
 
     // MARK: - Leer-/Fehlerzustände
@@ -191,21 +244,13 @@ struct GamificationPage: View {
 struct ActivityDetailRow: View {
     let activity: ActivityStat
     @EnvironmentObject var gam: GamificationManager
-    @State private var hovered   = false
-    @State private var showEdit  = false
-    @State private var editXPH   = 100
+    @State private var hovered  = false
+    @State private var showEdit = false
+    @State private var editXPH  = 100
 
     var body: some View {
         HStack(spacing: 10) {
-            // Level-Badge der Aktivität
-            ZStack {
-                Circle()
-                    .fill(activityLevelColor.opacity(0.12))
-                    .frame(width: 28, height: 28)
-                Text("\(activity.activityLevel)")
-                    .font(.system(size: 11, weight: .bold))
-                    .foregroundStyle(activityLevelColor)
-            }
+            tierBadgeSmall
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(activity.title)
@@ -215,16 +260,12 @@ struct ActivityDetailRow: View {
                     Text("\(activity.count)×")
                         .font(.system(size: 10, design: .monospaced))
                         .foregroundStyle(.secondary)
-                    Text("·")
-                        .foregroundStyle(.tertiary)
+                    Text("·").foregroundStyle(.tertiary)
                     Text(activity.formattedTime)
-                        .font(.system(size: 10))
-                        .foregroundStyle(.secondary)
-                    Text("·")
-                        .foregroundStyle(.tertiary)
+                        .font(.system(size: 10)).foregroundStyle(.secondary)
+                    Text("·").foregroundStyle(.tertiary)
                     Text("\(activity.xpPerHour) XP/h")
-                        .font(.system(size: 10))
-                        .foregroundStyle(.secondary)
+                        .font(.system(size: 10)).foregroundStyle(.secondary)
                 }
             }
 
@@ -235,14 +276,13 @@ struct ActivityDetailRow: View {
                     .font(.system(size: 11, weight: .semibold))
                     .foregroundStyle(.yellow.opacity(0.9))
 
-                // Mini-Fortschrittsbalken
                 GeometryReader { geo in
                     ZStack(alignment: .leading) {
                         RoundedRectangle(cornerRadius: 2)
                             .fill(Color.secondary.opacity(0.12))
                             .frame(height: 3)
                         RoundedRectangle(cornerRadius: 2)
-                            .fill(activityLevelColor.opacity(0.7))
+                            .fill(tierColor.opacity(0.7))
                             .frame(width: geo.size.width * activity.activityProgress, height: 3)
                     }
                 }
@@ -259,11 +299,38 @@ struct ActivityDetailRow: View {
             }
             Divider()
             Button(role: .destructive, action: { gam.addToBlacklist(activity.title) }) {
-                Label("Blockieren", systemImage: "nosign")
+                Label("Sperren", systemImage: "nosign")
             }
         }
         .popover(isPresented: $showEdit, arrowEdge: .trailing) {
             xpEditor
+        }
+    }
+
+    private var tierBadgeSmall: some View {
+        let rank = GamificationManager.rankInfo(forLevel: activity.activityLevel)
+        return ZStack {
+            Circle()
+                .fill(tierColor.opacity(0.12))
+                .frame(width: 28, height: 28)
+            VStack(spacing: -1) {
+                Text(rank.name.prefix(1).uppercased())
+                    .font(.system(size: 7, weight: .semibold))
+                    .foregroundStyle(tierColor.opacity(0.8))
+                Text(rank.roman)
+                    .font(.system(size: 10, weight: .bold))
+                    .foregroundStyle(tierColor)
+            }
+        }
+    }
+
+    private var tierColor: Color {
+        switch activity.activityLevel {
+        case 1...4:   return Color(red: 0.80, green: 0.52, blue: 0.25)  // Bronze
+        case 5...8:   return Color(red: 0.65, green: 0.65, blue: 0.70)  // Silber
+        case 9...12:  return Color(red: 1.00, green: 0.78, blue: 0.00)  // Gold
+        case 13...16: return Color(red: 0.40, green: 0.82, blue: 1.00)  // Platin
+        default:      return Color(red: 0.60, green: 0.40, blue: 1.00)  // Diamant
         }
     }
 
@@ -290,16 +357,5 @@ struct ActivityDetailRow: View {
         }
         .padding(14)
         .frame(width: 200)
-    }
-
-    private var activityLevelColor: Color {
-        let lv = activity.activityLevel
-        switch lv {
-        case ...4:    return .secondary
-        case 5...9:   return .blue
-        case 10...14: return .green
-        case 15...19: return .purple
-        default:      return Color(red: 1, green: 0.78, blue: 0)
-        }
     }
 }

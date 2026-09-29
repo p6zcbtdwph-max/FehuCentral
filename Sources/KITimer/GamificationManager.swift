@@ -12,8 +12,13 @@ struct ActivityStat: Codable, Identifiable {
     var earnedXP: Int {
         Int(Double(totalMinutes) / 60.0 * Double(xpPerHour))
     }
-    var activityLevel: Int    { GamificationManager.level(forXP: earnedXP) }
-    var activityProgress: Double { GamificationManager.levelProgress(forXP: earnedXP) }
+    var activityLevel: Int {
+        min(20, GamificationManager.level(forXP: earnedXP))
+    }
+    var activityProgress: Double {
+        if activityLevel >= 20 { return 1.0 }
+        return GamificationManager.levelProgress(forXP: earnedXP)
+    }
 
     var formattedTime: String {
         let h = totalMinutes / 60; let m = totalMinutes % 60
@@ -39,18 +44,23 @@ class GamificationManager: ObservableObject {
         didSet { saveExcludedCalendars(); refresh() }
     }
 
+    @Published var historyStartDate: Date = Calendar.current.dateInterval(of: .year, for: Date())?.start ?? Date() {
+        didSet {
+            UserDefaults.standard.set(historyStartDate.timeIntervalSince1970, forKey: "gamHistoryStart")
+            refresh()
+        }
+    }
+
     private var recognizedTitles: Set<String> = []
     private var xpPerHourMap: [String: Int]   = [:]
     private let store = EKEventStore()
 
     var totalXP: Int        { activities.reduce(0) { $0 + $1.earnedXP } }
-    var overallLevel: Int   { Self.level(forXP: totalXP) }
+    var overallLevel: Int   { Self.level(forXP: totalXP) }      // unbegrenzt
     var overallProgress: Double { Self.levelProgress(forXP: totalXP) }
     var rank: RankInfo      { Self.rankInfo(forLevel: overallLevel) }
 
     // MARK: - XP-Formel (exponentiell: 500 × 1,25^(N-1) pro Stufe)
-    // Kumulativer XP-Bedarf, um Level N zu erreichen (ab Level 1):
-    //   L1=0, L2=500, L3=1125, L5=2883, L10=12898, L15=43465, L20=171000
 
     static func xpNeeded(toReach level: Int) -> Int {
         guard level > 1 else { return 0 }
@@ -59,34 +69,38 @@ class GamificationManager: ObservableObject {
         }
     }
 
+    // Unbegrenzt – kein Cap
     static func level(forXP xp: Int) -> Int {
         var lv = 1
-        while lv < 20, xpNeeded(toReach: lv + 1) <= xp { lv += 1 }
+        while xpNeeded(toReach: lv + 1) <= xp { lv += 1 }
         return lv
     }
 
     static func levelProgress(forXP xp: Int) -> Double {
         let lv = level(forXP: xp)
-        guard lv < 20 else { return 1.0 }
         let current = xpNeeded(toReach: lv)
         let next    = xpNeeded(toReach: lv + 1)
         guard next > current else { return 0 }
         return min(1.0, Double(xp - current) / Double(next - current))
     }
 
+    // MARK: - Rangsystem: Bronze I-IV → Silber → Gold → Platin → Diamant (je 4 Level)
+
     struct RankInfo {
-        let name: String
-        let roman: String
-        let nextRankLevel: Int?   // Level, bei dem der nächste Rang beginnt
+        let name: String          // "Bronze", "Silber", "Gold", "Platin", "Diamant"
+        let roman: String         // "I", "II", "III", "IV" (oder "★" für Lvl > 20)
+        let nextRankLevel: Int?   // Level, ab dem nächster Rang beginnt
     }
 
     static func rankInfo(forLevel level: Int) -> RankInfo {
+        let r = ["I", "II", "III", "IV"]
         switch level {
-        case ...4:    return RankInfo(name: "Rookie",  roman: "I",   nextRankLevel: 5)
-        case 5...9:   return RankInfo(name: "Profi",   roman: "II",  nextRankLevel: 10)
-        case 10...14: return RankInfo(name: "Experte", roman: "III", nextRankLevel: 15)
-        case 15...19: return RankInfo(name: "Meister", roman: "IV",  nextRankLevel: 20)
-        default:      return RankInfo(name: "Legende", roman: "V",   nextRankLevel: nil)
+        case 1...4:   return RankInfo(name: "Bronze",  roman: r[level - 1],  nextRankLevel: 5)
+        case 5...8:   return RankInfo(name: "Silber",  roman: r[level - 5],  nextRankLevel: 9)
+        case 9...12:  return RankInfo(name: "Gold",    roman: r[level - 9],  nextRankLevel: 13)
+        case 13...16: return RankInfo(name: "Platin",  roman: r[level - 13], nextRankLevel: 17)
+        case 17...20: return RankInfo(name: "Diamant", roman: r[level - 17], nextRankLevel: nil)
+        default:      return RankInfo(name: "Diamant", roman: "★",           nextRankLevel: nil)
         }
     }
 
@@ -98,23 +112,23 @@ class GamificationManager: ObservableObject {
 
     func refresh() {
         guard EKEventStore.authorizationStatus(for: .event) == .fullAccess else { return }
-        let minOcc      = minimumOccurrences
-        let bl          = blacklist
-        let known       = recognizedTitles
-        let xpMap       = xpPerHourMap
+        let minOcc       = minimumOccurrences
+        let bl           = blacklist
+        let known        = recognizedTitles
+        let xpMap        = xpPerHourMap
         let excludedCals = excludedCalendarIDs
+        let startDate    = historyStartDate
         DispatchQueue.global(qos: .userInitiated).async {
             self.fetchAndProcess(minOcc: minOcc, blacklist: bl, known: known,
-                                  xpMap: xpMap, excludedCals: excludedCals)
+                                  xpMap: xpMap, excludedCals: excludedCals, startDate: startDate)
         }
     }
 
     private func fetchAndProcess(minOcc: Int, blacklist: Set<String>,
                                   known: Set<String>, xpMap: [String: Int],
-                                  excludedCals: Set<String>) {
-        let end   = Date()
-        let start = Calendar.current.date(byAdding: .month, value: -18, to: end)!
-        let pred  = store.predicateForEvents(withStart: start, end: end, calendars: nil)
+                                  excludedCals: Set<String>, startDate: Date) {
+        let end  = Date()
+        let pred = store.predicateForEvents(withStart: startDate, end: end, calendars: nil)
         let events = store.events(matching: pred).filter { !$0.isAllDay }
 
         var titleMap: [String: (count: Int, mins: Int)] = [:]
@@ -128,13 +142,11 @@ class GamificationManager: ObservableObject {
             titleMap[title] = (ex.count + 1, ex.mins + mins)
         }
 
-        // Neue Titel mit ≥ Schwelle erkennen (persistent, wächst nur)
         var newRecognized = known
         for (title, data) in titleMap where data.count >= minOcc {
             newRecognized.insert(title)
         }
 
-        // Stats für alle erkannten (nicht blockierten) Titel
         var stats: [ActivityStat] = []
         for title in newRecognized {
             guard !blacklist.contains(title) else { continue }
@@ -162,6 +174,12 @@ class GamificationManager: ObservableObject {
         recognizedTitles.remove(title)
         activities.removeAll { $0.title == title }
         saveBlacklist(); saveRecognized()
+    }
+
+    func removeFromBlacklist(_ title: String) {
+        blacklist.remove(title)
+        saveBlacklist()
+        refresh()
     }
 
     // MARK: - XP/h pro Aktivität
@@ -238,5 +256,8 @@ class GamificationManager: ObservableObject {
         let stored = UserDefaults.standard.integer(forKey: "gamMinOccurrences")
         minimumOccurrences = stored >= 1 ? stored : 1
         streak = UserDefaults.standard.integer(forKey: "gamStreak")
+        let ts = UserDefaults.standard.double(forKey: "gamHistoryStart")
+        if ts > 0 { historyStartDate = Date(timeIntervalSince1970: ts) }
+        // sonst bleibt der Default (Jahresanfang) erhalten
     }
 }

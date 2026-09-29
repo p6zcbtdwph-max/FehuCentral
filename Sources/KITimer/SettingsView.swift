@@ -151,6 +151,27 @@ struct SettingsView: View {
             Divider().padding(.vertical, 10)
 
             sectionLabel("Gamification")
+
+            // Zeitraum
+            HStack {
+                Text("Aktivitäten ab")
+                    .font(.system(size: 13))
+                Spacer()
+                DatePicker(
+                    "",
+                    selection: Binding(
+                        get: { gam.historyStartDate },
+                        set: { gam.historyStartDate = $0 }
+                    ),
+                    in: ...Date(),
+                    displayedComponents: .date
+                )
+                .datePickerStyle(.compact)
+                .labelsHidden()
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 4)
+
             stepperRow(
                 "Mindest-Vorkommen",
                 value: Binding(get: { gam.minimumOccurrences }, set: { gam.minimumOccurrences = $0 }),
