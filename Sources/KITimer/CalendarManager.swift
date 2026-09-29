@@ -59,8 +59,14 @@ class CalendarManager: ObservableObject {
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in
                 guard let self else { return }
+                let wasGranted = self.authStatus == .fullAccess
                 self.authStatus = EKEventStore.authorizationStatus(for: .event)
-                if self.authStatus == .fullAccess { self.fetchToday() }
+                if self.authStatus == .fullAccess {
+                    self.fetchToday()
+                    if !wasGranted {
+                        NotificationCenter.default.post(name: .calendarAccessGranted, object: nil)
+                    }
+                }
             }
 
         refreshTimer = Timer.publish(every: 300, on: .main, in: .common)

@@ -86,43 +86,39 @@ struct CountdownCircleView: View {
 
     var body: some View {
         Button(action: onTap) {
-            VStack(spacing: 3) {
-                ZStack {
-                    Circle()
-                        .stroke(Color.secondary.opacity(0.12), lineWidth: 3.5)
+            ZStack {
+                Circle()
+                    .stroke(Color.secondary.opacity(0.12), lineWidth: 4)
 
-                    Circle()
-                        .trim(from: 0, to: ringProgress)
-                        .stroke(ringColor,
-                                style: StrokeStyle(lineWidth: 3.5, lineCap: .round))
-                        .rotationEffect(.degrees(-90))
-                        .animation(.easeInOut(duration: 0.4), value: ringProgress)
+                Circle()
+                    .trim(from: 0, to: ringProgress)
+                    .stroke(ringColor, style: StrokeStyle(lineWidth: 4, lineCap: .round))
+                    .rotationEffect(.degrees(-90))
+                    .animation(.easeInOut(duration: 0.4), value: ringProgress)
 
-                    Text(event.emoji)
-                        .font(.system(size: 13))
-                        .opacity(0.25)
+                Text(event.emoji)
+                    .font(.system(size: 16))
+                    .opacity(0.18)
 
-                    VStack(spacing: 0) {
-                        Text(daysLabel)
-                            .font(.system(size: days > 99 ? 7 : 9,
-                                          weight: .bold,
-                                          design: .monospaced))
-                            .foregroundStyle(days < 0 ? .secondary : .primary)
-                        if !daysUnit.isEmpty {
-                            Text(daysUnit)
-                                .font(.system(size: 6, weight: .medium))
-                                .foregroundStyle(.secondary)
-                        }
+                VStack(spacing: 1) {
+                    Text(daysLabel)
+                        .font(.system(size: days > 99 ? 8 : 11,
+                                      weight: .bold,
+                                      design: .monospaced))
+                        .foregroundStyle(days < 0 ? .secondary : .primary)
+                    if !daysUnit.isEmpty {
+                        Text(daysUnit)
+                            .font(.system(size: 6, weight: .medium))
+                            .foregroundStyle(.secondary)
                     }
+                    Text(event.name)
+                        .font(.system(size: 7))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .frame(maxWidth: 44)
                 }
-                .frame(width: 36, height: 36)
-
-                Text(event.name)
-                    .font(.system(size: 8))
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-                    .frame(maxWidth: 44)
             }
+            .frame(width: 56, height: 56)
         }
         .buttonStyle(.plain)
     }

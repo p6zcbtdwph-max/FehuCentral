@@ -1,4 +1,25 @@
 import SwiftUI
+import AppKit
+
+/// Setzt das unterliegende NSWindow auf fully opaque — verhindert den Frosted-Glass-Effekt
+struct OpaqueWindowFix: NSViewRepresentable {
+    func makeNSView(context: Context) -> NSView {
+        let v = NSView()
+        DispatchQueue.main.async {
+            guard let win = v.window else { return }
+            win.isOpaque = true
+            win.backgroundColor = .windowBackgroundColor
+        }
+        return v
+    }
+    func updateNSView(_ nsView: NSView, context: Context) {
+        DispatchQueue.main.async {
+            guard let win = nsView.window else { return }
+            win.isOpaque = true
+            win.backgroundColor = .windowBackgroundColor
+        }
+    }
+}
 
 enum MenuPage {
     case main, calendar, countdowns, intervals, clipboard, settings, gamification, pomodoro
@@ -19,7 +40,8 @@ struct MainMenuView: View {
         }
         .frame(width: 320)
         .background(Color(NSColor.windowBackgroundColor))
-        .animation(.easeInOut(duration: 0.12), value: page == .main)
+        .background(OpaqueWindowFix().frame(width: 0, height: 0))
+        .animation(.easeInOut(duration: 0.12), value: page)
     }
 
     // MARK: - Obere Leiste
@@ -150,20 +172,18 @@ struct MainMenuView: View {
             if cal.authStatus == .fullAccess && !gam.activities.isEmpty {
                 gamificationStrip
                 Divider()
-            }
-
-            // Top-Aktivitäten
-            if cal.authStatus == .fullAccess && !gam.activities.isEmpty {
                 topActivitiesSection
                 Divider()
             }
 
-            Divider()
-
-            // Ablage
-            NavCard(icon: "doc.on.clipboard", label: "Ablage") { page = .clipboard }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 8)
+            // Navigation
+            VStack(spacing: 4) {
+                NavCard(icon: "doc.on.clipboard", label: "Ablage") { page = .clipboard }
+                NavCard(icon: "calendar",         label: "Kalender") { page = .calendar }
+                NavCard(icon: "clock",            label: "Intervalle") { page = .intervals }
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
 
             Divider()
 
@@ -297,6 +317,8 @@ struct MainMenuView: View {
             CircularMiniProgress(progress: tm.intervalProgress(iv), color: .blue)
         }
         .padding(.horizontal, 16).padding(.vertical, 7)
+        .contentShape(Rectangle())
+        .onTapGesture { page = .intervals }
     }
 
     // MARK: - Banner: Kalender

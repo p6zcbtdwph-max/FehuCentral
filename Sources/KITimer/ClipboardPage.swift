@@ -120,7 +120,7 @@ struct ClipboardPage: View {
                     icon: "star.slash",
                     text: searchText.isEmpty
                         ? "Noch keine Snippets.\nTippe auf + um einen Eintrag anzulegen\noder pinne Einträge aus dem Verlauf."
-                        : "Keine Treffer fur «\(searchText)»"
+                        : "Keine Treffer für «\(searchText)»"
                 )
             } else {
                 ScrollView {
@@ -152,7 +152,7 @@ struct ClipboardPage: View {
                     icon: "clock.arrow.circlepath",
                     text: searchText.isEmpty
                         ? "Noch kein Verlauf.\nKopiere etwas und es erscheint hier."
-                        : "Keine Treffer fur «\(searchText)»"
+                        : "Keine Treffer für «\(searchText)»"
                 )
             } else {
                 VStack(spacing: 0) {

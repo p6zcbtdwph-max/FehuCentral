@@ -96,7 +96,9 @@ struct GamificationPage: View {
                 statChip(formattedTotalTime, "Gesamt-Zeit")
             }
         }
-        .padding(16)
+        .padding(.horizontal, 16)
+        .padding(.top, 10)
+        .padding(.bottom, 12)
     }
 
     private var formattedTotalTime: String {
@@ -245,67 +247,62 @@ struct GamificationPage: View {
 struct ActivityDetailRow: View {
     let activity: ActivityStat
     @EnvironmentObject var gam: GamificationManager
-    @State private var hovered  = false
-    @State private var showEdit = false
-    @State private var editXPH  = 100
+    @State private var hovered   = false
+    @State private var showEdit  = false
+    @State private var editXPH   = 100
 
     var body: some View {
-        HStack(spacing: 10) {
+        HStack(spacing: 8) {
             tierBadgeSmall
 
+            // Titel + Statistik
             VStack(alignment: .leading, spacing: 2) {
                 Text(activity.title)
                     .font(.system(size: 12, weight: .medium))
                     .lineLimit(1)
-                HStack(spacing: 6) {
+                HStack(spacing: 4) {
                     Text("\(activity.count)×")
                         .font(.system(size: 10, design: .monospaced))
                         .foregroundStyle(.secondary)
                     Text("·").foregroundStyle(.tertiary)
                     Text(activity.formattedTime)
                         .font(.system(size: 10)).foregroundStyle(.secondary)
-                    Text("·").foregroundStyle(.tertiary)
-                    Text("\(activity.xpPerHour) XP/h")
-                        .font(.system(size: 10)).foregroundStyle(.secondary)
                 }
             }
 
             Spacer()
 
-            VStack(alignment: .trailing, spacing: 2) {
-                Text("+\(activity.earnedXP) XP")
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(.yellow.opacity(0.9))
-
-                GeometryReader { geo in
-                    ZStack(alignment: .leading) {
-                        RoundedRectangle(cornerRadius: 2)
-                            .fill(Color.secondary.opacity(0.12))
-                            .frame(height: 3)
-                        RoundedRectangle(cornerRadius: 2)
-                            .fill(tierColor.opacity(0.7))
-                            .frame(width: geo.size.width * activity.activityProgress, height: 3)
-                    }
+            // XP/h — Spalte, klickbar
+            Button(action: { editXPH = activity.xpPerHour; showEdit = true }) {
+                VStack(alignment: .trailing, spacing: 1) {
+                    Text("\(activity.xpPerHour) XP/h")
+                        .font(.system(size: 10, weight: .semibold, design: .monospaced))
+                        .foregroundStyle(Color.accentColor)
+                    Text("+\(activity.earnedXP) XP")
+                        .font(.system(size: 9))
+                        .foregroundStyle(.yellow.opacity(0.85))
                 }
-                .frame(width: 48, height: 3)
             }
+            .buttonStyle(.plain)
+            .popover(isPresented: $showEdit, arrowEdge: .trailing) {
+                xpEditor
+            }
+
+            // Blacklist-Button
+            Button(action: { gam.addToBlacklist(activity.title) }) {
+                Image(systemName: "nosign")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary.opacity(hovered ? 0.6 : 0.25))
+            }
+            .buttonStyle(.plain)
+            .help("Sperren")
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 7)
         .background(hovered ? Color.secondary.opacity(0.06) : Color.clear)
+        .contentShape(Rectangle())
         .onHover { hovered = $0 }
-        .contextMenu {
-            Button(action: { editXPH = activity.xpPerHour; showEdit = true }) {
-                Label("XP/h anpassen", systemImage: "slider.horizontal.3")
-            }
-            Divider()
-            Button(role: .destructive, action: { gam.addToBlacklist(activity.title) }) {
-                Label("Sperren", systemImage: "nosign")
-            }
-        }
-        .popover(isPresented: $showEdit, arrowEdge: .trailing) {
-            xpEditor
-        }
+        .onTapGesture { editXPH = activity.xpPerHour; showEdit = true }
     }
 
     private var tierBadgeSmall: some View {
@@ -327,36 +324,48 @@ struct ActivityDetailRow: View {
 
     private var tierColor: Color {
         switch activity.activityLevel {
-        case 1...4:   return Color(red: 0.80, green: 0.52, blue: 0.25)  // Bronze
-        case 5...8:   return Color(red: 0.65, green: 0.65, blue: 0.70)  // Silber
-        case 9...12:  return Color(red: 1.00, green: 0.78, blue: 0.00)  // Gold
-        case 13...16: return Color(red: 0.40, green: 0.82, blue: 1.00)  // Platin
-        default:      return Color(red: 0.60, green: 0.40, blue: 1.00)  // Diamant
+        case 1...4:   return Color(red: 0.80, green: 0.52, blue: 0.25)
+        case 5...8:   return Color(red: 0.65, green: 0.65, blue: 0.70)
+        case 9...12:  return Color(red: 1.00, green: 0.78, blue: 0.00)
+        case 13...16: return Color(red: 0.40, green: 0.82, blue: 1.00)
+        default:      return Color(red: 0.60, green: 0.40, blue: 1.00)
         }
     }
 
     private var xpEditor: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text("XP pro Stunde")
-                .font(.system(size: 12, weight: .semibold))
+        VStack(alignment: .leading, spacing: 12) {
             Text(activity.title)
-                .font(.system(size: 11)).foregroundStyle(.secondary)
+                .font(.system(size: 12, weight: .semibold))
                 .lineLimit(1)
-            HStack {
-                Text("\(editXPH) XP/h")
-                    .font(.system(size: 13, weight: .semibold, design: .monospaced))
-                    .frame(width: 80)
-                Stepper("", value: $editXPH, in: 10...500, step: 10)
-                    .labelsHidden()
+
+            VStack(alignment: .leading, spacing: 6) {
+                Text("XP pro Stunde")
+                    .font(.system(size: 10)).foregroundStyle(.secondary)
+                HStack {
+                    Text("\(editXPH) XP/h")
+                        .font(.system(size: 13, weight: .semibold, design: .monospaced))
+                        .frame(width: 80)
+                    Stepper("", value: $editXPH, in: 10...500, step: 10)
+                        .labelsHidden()
+                }
             }
-            Button("Speichern") {
-                gam.setXPPerHour(editXPH, for: activity.title)
-                showEdit = false
+
+            HStack(spacing: 8) {
+                Button("Speichern") {
+                    gam.setXPPerHour(editXPH, for: activity.title)
+                    showEdit = false
+                }
+                .buttonStyle(.borderedProminent).controlSize(.small)
+
+                Button("Sperren") {
+                    gam.addToBlacklist(activity.title)
+                    showEdit = false
+                }
+                .buttonStyle(.bordered).controlSize(.small)
+                .foregroundStyle(.red)
             }
-            .buttonStyle(.borderedProminent).controlSize(.small)
-            .frame(maxWidth: .infinity)
         }
         .padding(14)
-        .frame(width: 200)
+        .frame(width: 210)
     }
 }

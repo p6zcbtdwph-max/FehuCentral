@@ -54,7 +54,6 @@ class GamificationManager: ObservableObject {
 
     private var recognizedTitles: Set<String> = []
     private var xpPerHourMap: [String: Int]   = [:]
-    private let store = EKEventStore()
     private var storeObserver: AnyCancellable?
     private var accessObserver: AnyCancellable?
 
@@ -144,8 +143,10 @@ class GamificationManager: ObservableObject {
     private func fetchAndProcess(minOcc: Int, blacklist: Set<String>,
                                   known: Set<String>, xpMap: [String: Int],
                                   excludedCals: Set<String>, startDate: Date) {
-        let end  = Date()
-        let pred = store.predicateForEvents(withStart: startDate, end: end, calendars: nil)
+        // Frischer Store pro Abruf — vermeidet Probleme mit vor Zugriffserteilung erstellten Instanzen
+        let store = EKEventStore()
+        let end   = Date()
+        let pred  = store.predicateForEvents(withStart: startDate, end: end, calendars: nil)
         let events = store.events(matching: pred).filter { !$0.isAllDay }
 
         var titleMap: [String: (count: Int, mins: Int)] = [:]
