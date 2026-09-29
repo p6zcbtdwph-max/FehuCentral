@@ -28,11 +28,15 @@ class GamificationManager: ObservableObject {
     @Published var blacklist: Set<String>     = []
     @Published var streak: Int = 0
 
-    @Published var minimumOccurrences: Int = 5 {
+    @Published var minimumOccurrences: Int = 1 {
         didSet {
             UserDefaults.standard.set(minimumOccurrences, forKey: "gamMinOccurrences")
             refresh()
         }
+    }
+
+    @Published var excludedCalendarIDs: Set<String> = [] {
+        didSet { saveExcludedCalendars(); refresh() }
     }
 
     private var recognizedTitles: Set<String> = []
@@ -94,17 +98,20 @@ class GamificationManager: ObservableObject {
 
     func refresh() {
         guard EKEventStore.authorizationStatus(for: .event) == .fullAccess else { return }
-        let minOcc = minimumOccurrences
-        let bl     = blacklist
-        let known  = recognizedTitles
-        let xpMap  = xpPerHourMap
+        let minOcc      = minimumOccurrences
+        let bl          = blacklist
+        let known       = recognizedTitles
+        let xpMap       = xpPerHourMap
+        let excludedCals = excludedCalendarIDs
         DispatchQueue.global(qos: .userInitiated).async {
-            self.fetchAndProcess(minOcc: minOcc, blacklist: bl, known: known, xpMap: xpMap)
+            self.fetchAndProcess(minOcc: minOcc, blacklist: bl, known: known,
+                                  xpMap: xpMap, excludedCals: excludedCals)
         }
     }
 
     private func fetchAndProcess(minOcc: Int, blacklist: Set<String>,
-                                  known: Set<String>, xpMap: [String: Int]) {
+                                  known: Set<String>, xpMap: [String: Int],
+                                  excludedCals: Set<String>) {
         let end   = Date()
         let start = Calendar.current.date(byAdding: .month, value: -18, to: end)!
         let pred  = store.predicateForEvents(withStart: start, end: end, calendars: nil)
@@ -112,6 +119,7 @@ class GamificationManager: ObservableObject {
 
         var titleMap: [String: (count: Int, mins: Int)] = [:]
         for event in events {
+            if excludedCals.contains(event.calendar.calendarIdentifier) { continue }
             guard let raw = event.title else { continue }
             let title = raw.trimmingCharacters(in: .whitespaces)
             guard !title.isEmpty, !blacklist.contains(title) else { continue }
@@ -204,6 +212,12 @@ class GamificationManager: ObservableObject {
         }
     }
 
+    private func saveExcludedCalendars() {
+        if let d = try? JSONEncoder().encode(Array(excludedCalendarIDs)) {
+            UserDefaults.standard.set(d, forKey: "gamExcludedCals")
+        }
+    }
+
     private func saveXPMap() {
         if let d = try? JSONEncoder().encode(xpPerHourMap) {
             UserDefaults.standard.set(d, forKey: "gamXPMap")
@@ -219,8 +233,10 @@ class GamificationManager: ObservableObject {
            let list = try? JSONDecoder().decode([String].self, from: d) { blacklist = Set(list) }
         if let d = UserDefaults.standard.data(forKey: "gamXPMap"),
            let map  = try? JSONDecoder().decode([String: Int].self, from: d) { xpPerHourMap = map }
+        if let d = UserDefaults.standard.data(forKey: "gamExcludedCals"),
+           let list = try? JSONDecoder().decode([String].self, from: d) { excludedCalendarIDs = Set(list) }
         let stored = UserDefaults.standard.integer(forKey: "gamMinOccurrences")
-        minimumOccurrences = stored >= 5 ? stored : 5
+        minimumOccurrences = stored >= 1 ? stored : 1
         streak = UserDefaults.standard.integer(forKey: "gamStreak")
     }
 }

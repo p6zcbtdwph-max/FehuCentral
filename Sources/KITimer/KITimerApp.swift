@@ -2,11 +2,10 @@ import SwiftUI
 
 @main
 struct KITimerApp: App {
-    @StateObject private var tm      = TimeManager()
-    @StateObject private var clip    = ClipboardManager()
-    @StateObject private var cal     = CalendarManager()
-    @StateObject private var tracker = ProjectTracker()
-    @StateObject private var gam     = GamificationManager()
+    @StateObject private var tm   = TimeManager()
+    @StateObject private var clip = ClipboardManager()
+    @StateObject private var cal  = CalendarManager()
+    @StateObject private var gam  = GamificationManager()
 
     var body: some Scene {
         MenuBarExtra {
@@ -14,12 +13,11 @@ struct KITimerApp: App {
                 .environmentObject(tm)
                 .environmentObject(clip)
                 .environmentObject(cal)
-                .environmentObject(tracker)
                 .environmentObject(gam)
         } label: {
             HStack(spacing: 3) {
-                Image(systemName: tm.menuBarIcon)
-                    .imageScale(.small)
+                Text("ᚠ")
+                    .font(.system(size: 13, weight: .semibold))
                 Text(tm.menuBarText)
                     .monospacedDigit()
                     .font(.system(size: 12, weight: .medium))

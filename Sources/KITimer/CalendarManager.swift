@@ -39,17 +39,26 @@ struct CalendarEvent: Identifiable {
 }
 
 class CalendarManager: ObservableObject {
-    private let store = EKEventStore()
+    let store = EKEventStore()
     @Published var todayEvents: [CalendarEvent] = []
     @Published var authStatus: EKAuthorizationStatus = .notDetermined
 
     private var refreshTimer: AnyCancellable?
+    private var storeObserver: AnyCancellable?
 
     init() {
         authStatus = EKEventStore.authorizationStatus(for: .event)
         if authStatus == .fullAccess { fetchToday() }
 
-        // alle 5 Minuten neu laden
+        storeObserver = NotificationCenter.default
+            .publisher(for: .EKEventStoreChanged, object: store)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                guard let self else { return }
+                self.authStatus = EKEventStore.authorizationStatus(for: .event)
+                if self.authStatus == .fullAccess { self.fetchToday() }
+            }
+
         refreshTimer = Timer.publish(every: 300, on: .main, in: .common)
             .autoconnect()
             .sink { [weak self] _ in self?.fetchToday() }
@@ -62,6 +71,11 @@ class CalendarManager: ObservableObject {
                 if granted { self?.fetchToday() }
             }
         }
+    }
+
+    var availableCalendars: [EKCalendar] {
+        guard authStatus == .fullAccess else { return [] }
+        return store.calendars(for: .event).sorted { $0.title < $1.title }
     }
 
     func fetchToday() {

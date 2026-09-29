@@ -9,19 +9,17 @@ struct SettingsView: View {
     @State private var tab: SettingsTab = .arbeitszeit
 
     enum SettingsTab: String, CaseIterable {
-        case arbeitszeit = "Zeiten"
-        case pomodoro    = "Pomodoro"
-        case notify      = "Hinweise"
+        case arbeitszeit  = "Zeiten"
+        case pomodoro     = "Pomodoro"
+        case notify       = "Hinweise"
         case integrations = "Apps"
     }
 
     var body: some View {
         VStack(spacing: 0) {
-            // Werkzeuge-Sektion
             werkzeugSection
             Divider()
 
-            // Tab-Leiste
             HStack(spacing: 0) {
                 ForEach(SettingsTab.allCases, id: \.self) { t in
                     Button(action: { tab = t }) {
@@ -29,11 +27,7 @@ struct SettingsView: View {
                             .font(.system(size: 11, weight: tab == t ? .semibold : .regular))
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 7)
-                            .background(
-                                tab == t
-                                    ? Color.accentColor.opacity(0.12)
-                                    : Color.clear
-                            )
+                            .background(tab == t ? Color.accentColor.opacity(0.12) : Color.clear)
                             .foregroundStyle(tab == t ? Color.accentColor : .secondary)
                     }
                     .buttonStyle(.plain)
@@ -46,10 +40,10 @@ struct SettingsView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
                     switch tab {
-                    case .arbeitszeit:    arbeitszeitTab
-                    case .pomodoro:       pomodoroTab
-                    case .notify:         notifyTab
-                    case .integrations:   integrationsTab
+                    case .arbeitszeit:  arbeitszeitTab
+                    case .pomodoro:     pomodoroTab
+                    case .notify:       notifyTab
+                    case .integrations: integrationsTab
                     }
                     Spacer().frame(height: 12)
                 }
@@ -70,8 +64,8 @@ struct SettingsView: View {
                 .padding(.bottom, 6)
 
             HStack(spacing: 8) {
-                NavCard(icon: "calendar", label: "Kalender") { navigate(.calendar) }
-                NavCard(icon: "clock",    label: "Intervalle") { navigate(.intervals) }
+                NavCard(icon: "clock",                label: "Intervalle") { navigate(.intervals) }
+                NavCard(icon: "calendar.badge.clock", label: "Countdown")  { navigate(.countdowns) }
             }
             .padding(.horizontal, 12)
             .padding(.bottom, 10)
@@ -160,33 +154,67 @@ struct SettingsView: View {
             stepperRow(
                 "Mindest-Vorkommen",
                 value: Binding(get: { gam.minimumOccurrences }, set: { gam.minimumOccurrences = $0 }),
-                unit: "×", range: 5...10, step: 1
+                unit: "×", range: 1...20, step: 1
             )
-            HStack {
-                Text("Aktivitäten, die seltener vorkommen, werden ignoriert.")
+            Text("Aktivitäten mit weniger Einträgen werden ignoriert. Auf 1 setzen zum Testen.")
+                .font(.system(size: 10))
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.horizontal, 16)
+                .padding(.bottom, 8)
+
+            // Kalender-Filter
+            if cal.authStatus == .fullAccess && !cal.availableCalendars.isEmpty {
+                Divider().padding(.vertical, 10)
+                sectionLabel("Kalender-Filter")
+                Text("Welche Kalender sollen für Aktivitäten ausgewertet werden?")
                     .font(.system(size: 10))
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
+                    .padding(.horizontal, 16)
+                    .padding(.bottom, 6)
+
+                ForEach(cal.availableCalendars, id: \.calendarIdentifier) { calendar in
+                    HStack(spacing: 10) {
+                        Circle()
+                            .fill(Color(cgColor: calendar.cgColor))
+                            .frame(width: 8, height: 8)
+                        Text(calendar.title)
+                            .font(.system(size: 13))
+                        Spacer()
+                        Toggle("", isOn: Binding(
+                            get: { !gam.excludedCalendarIDs.contains(calendar.calendarIdentifier) },
+                            set: { include in
+                                if include {
+                                    gam.excludedCalendarIDs.remove(calendar.calendarIdentifier)
+                                } else {
+                                    gam.excludedCalendarIDs.insert(calendar.calendarIdentifier)
+                                }
+                            }
+                        ))
+                        .labelsHidden()
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 4)
+                }
             }
-            .padding(.horizontal, 16)
-            .padding(.bottom, 6)
         }
     }
 
     private var calStatusText: String {
         switch cal.authStatus {
-        case .fullAccess:      return "Zugriff erteilt"
-        case .notDetermined:   return "Noch nicht gefragt"
-        case .restricted:      return "Durch MDM eingeschränkt"
-        default:               return "Kein Zugriff"
+        case .fullAccess:    return "Zugriff erteilt"
+        case .notDetermined: return "Noch nicht gefragt"
+        case .restricted:    return "Durch MDM eingeschränkt"
+        default:             return "Kein Zugriff"
         }
     }
 
     private var calStatusColor: Color {
         switch cal.authStatus {
-        case .fullAccess: return .green
+        case .fullAccess:    return .green
         case .notDetermined: return .secondary
-        default: return .red
+        default:             return .red
         }
     }
 
