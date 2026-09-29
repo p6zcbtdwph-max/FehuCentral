@@ -2,6 +2,10 @@ import EventKit
 import Combine
 import SwiftUI
 
+extension Notification.Name {
+    static let calendarAccessGranted = Notification.Name("calendarAccessGranted")
+}
+
 struct CalendarEvent: Identifiable {
     let id: String
     let title: String
@@ -61,14 +65,27 @@ class CalendarManager: ObservableObject {
 
         refreshTimer = Timer.publish(every: 300, on: .main, in: .common)
             .autoconnect()
-            .sink { [weak self] _ in self?.fetchToday() }
+            .sink { [weak self] _ in
+                guard let self else { return }
+                let newStatus = EKEventStore.authorizationStatus(for: .event)
+                if newStatus == .fullAccess && self.authStatus != .fullAccess {
+                    self.authStatus = newStatus
+                    self.fetchToday()
+                    NotificationCenter.default.post(name: .calendarAccessGranted, object: nil)
+                } else {
+                    self.fetchToday()
+                }
+            }
     }
 
     func requestAccess() {
         store.requestFullAccessToEvents { [weak self] granted, _ in
             DispatchQueue.main.async {
                 self?.authStatus = EKEventStore.authorizationStatus(for: .event)
-                if granted { self?.fetchToday() }
+                if granted {
+                    self?.fetchToday()
+                    NotificationCenter.default.post(name: .calendarAccessGranted, object: nil)
+                }
             }
         }
     }

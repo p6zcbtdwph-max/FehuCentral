@@ -56,6 +56,7 @@ class GamificationManager: ObservableObject {
     private var xpPerHourMap: [String: Int]   = [:]
     private let store = EKEventStore()
     private var storeObserver: AnyCancellable?
+    private var accessObserver: AnyCancellable?
 
     var totalXP: Int        { activities.reduce(0) { $0 + $1.earnedXP } }
     var overallLevel: Int   { Self.level(forXP: totalXP) }      // unbegrenzt
@@ -111,8 +112,15 @@ class GamificationManager: ObservableObject {
     init() {
         load()
         refresh()
+        // Datenänderungen (Events hinzugefügt/gelöscht)
         storeObserver = NotificationCenter.default
             .publisher(for: .EKEventStoreChanged)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in self?.refresh() }
+
+        // Zugriffserteilung durch Nutzer
+        accessObserver = NotificationCenter.default
+            .publisher(for: .calendarAccessGranted)
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in self?.refresh() }
     }
