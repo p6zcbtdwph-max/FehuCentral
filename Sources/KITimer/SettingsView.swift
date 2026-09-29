@@ -4,6 +4,7 @@ import EventKit
 struct SettingsView: View {
     @EnvironmentObject var tm:  TimeManager
     @EnvironmentObject var cal: CalendarManager
+    @EnvironmentObject var gam: GamificationManager
     var navigate: (MenuPage) -> Void = { _ in }
     @State private var tab: SettingsTab = .arbeitszeit
 
@@ -152,6 +153,23 @@ struct SettingsView: View {
                 .padding(.horizontal, 16)
                 .padding(.vertical, 8)
             }
+
+            Divider().padding(.vertical, 10)
+
+            sectionLabel("Gamification")
+            stepperRow(
+                "Mindest-Vorkommen",
+                value: Binding(get: { gam.minimumOccurrences }, set: { gam.minimumOccurrences = $0 }),
+                unit: "×", range: 5...10, step: 1
+            )
+            HStack {
+                Text("Aktivitäten, die seltener vorkommen, werden ignoriert.")
+                    .font(.system(size: 10))
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .padding(.horizontal, 16)
+            .padding(.bottom, 6)
         }
     }
 

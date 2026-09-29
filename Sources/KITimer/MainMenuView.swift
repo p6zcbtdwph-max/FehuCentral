@@ -74,7 +74,7 @@ struct MainMenuView: View {
         case .countdowns: CountdownsPage().environmentObject(tm)
         case .projects:   ProjectsPage().environmentObject(tracker)
         case .intervals:  IntervalsPage().environmentObject(tm)
-        case .settings:      SettingsView(navigate: { page = $0 }).environmentObject(tm).environmentObject(cal)
+        case .settings:      SettingsView(navigate: { page = $0 }).environmentObject(tm).environmentObject(cal).environmentObject(gam)
         case .gamification:  GamificationPage().environmentObject(gam).environmentObject(cal)
         }
     }
@@ -130,7 +130,7 @@ struct MainMenuView: View {
             }
 
             // Gamification-Strip (nur wenn Kalender-Zugriff vorhanden)
-            if cal.authStatus == .fullAccess && !gam.activities.isEmpty {
+            if cal.authStatus == .fullAccess && (gam.overallLevel > 1 || !gam.activities.isEmpty) {
                 Divider()
                 gamificationStrip
             }
@@ -197,25 +197,25 @@ struct MainMenuView: View {
     private var gamificationStrip: some View {
         Button(action: { page = .gamification }) {
             HStack(spacing: 10) {
-                // Level-Badge
+                // Rang-Badge
                 ZStack {
                     Circle()
                         .fill(Color.yellow.opacity(0.15))
                         .frame(width: 32, height: 32)
                     VStack(spacing: 0) {
-                        Text("⭐").font(.system(size: 10))
-                        Text("\(gam.level)")
-                            .font(.system(size: 11, weight: .bold))
+                        Text(gam.rank.roman)
+                            .font(.system(size: 12, weight: .bold))
+                            .foregroundStyle(.yellow)
                     }
                 }
 
                 VStack(alignment: .leading, spacing: 3) {
                     HStack(spacing: 6) {
-                        Text("Level \(gam.level)")
+                        Text("Level \(gam.overallLevel) · \(gam.rank.name)")
                             .font(.system(size: 11, weight: .semibold))
                         Text("·")
                             .foregroundStyle(.tertiary)
-                        Text("🔥 \(gam.streak) Tage")
+                        Text("🔥 \(gam.streak)")
                             .font(.system(size: 11))
                             .foregroundStyle(.orange)
                     }
@@ -226,7 +226,7 @@ struct MainMenuView: View {
                                 .frame(height: 5)
                             RoundedRectangle(cornerRadius: 3)
                                 .fill(Color.yellow.opacity(0.75))
-                                .frame(width: geo.size.width * gam.levelProgress, height: 5)
+                                .frame(width: geo.size.width * gam.overallProgress, height: 5)
                         }
                     }
                     .frame(height: 5)
