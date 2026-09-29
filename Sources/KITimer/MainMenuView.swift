@@ -1,7 +1,7 @@
 import SwiftUI
 
 enum MenuPage {
-    case main, calendar, countdowns, intervals, clipboard, settings, gamification
+    case main, calendar, countdowns, intervals, clipboard, settings, gamification, pomodoro
 }
 
 struct MainMenuView: View {
@@ -25,7 +25,7 @@ struct MainMenuView: View {
     // MARK: - Obere Leiste
 
     private var topBar: some View {
-        HStack(alignment: .center) {
+        HStack(alignment: .center, spacing: 8) {
             if page != .main {
                 Button(action: { page = .main }) {
                     Image(systemName: "chevron.left")
@@ -38,6 +38,29 @@ struct MainMenuView: View {
             Text(pageTitle)
                 .font(.system(size: 15, weight: .semibold))
                 .frame(maxWidth: .infinity, alignment: page == .main ? .leading : .center)
+
+            if page == .main {
+                Button(action: { page = .pomodoro }) {
+                    Group {
+                        if tm.pomodoroPhase != .idle {
+                            HStack(spacing: 3) {
+                                Text(tm.pomodoroPhase == .work ? "🍅" : "☕")
+                                Text(tm.pomodoroDisplayText)
+                                    .font(.system(size: 11, weight: .semibold, design: .monospaced))
+                            }
+                        } else {
+                            Text("Pomodoro")
+                                .font(.system(size: 11, weight: .medium))
+                        }
+                    }
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 3)
+                    .background(tm.pomodoroPhase != .idle ? Color.red.opacity(0.12) : Color.secondary.opacity(0.08))
+                    .foregroundStyle(tm.pomodoroPhase != .idle ? Color.red : Color.secondary)
+                    .clipShape(Capsule())
+                }
+                .buttonStyle(.plain)
+            }
 
             Button(action: { page = page == .settings ? .main : .settings }) {
                 Image(systemName: "gear")
@@ -59,6 +82,7 @@ struct MainMenuView: View {
         case .intervals:    return "Intervalle"
         case .settings:     return "Einstellungen"
         case .gamification: return "Aktivitäten"
+        case .pomodoro:     return "Pomodoro"
         }
     }
 
@@ -74,6 +98,7 @@ struct MainMenuView: View {
         case .intervals:    IntervalsPage().environmentObject(tm)
         case .settings:     SettingsView(navigate: { page = $0 }).environmentObject(tm).environmentObject(cal).environmentObject(gam)
         case .gamification: GamificationPage().environmentObject(gam).environmentObject(cal)
+        case .pomodoro:     pomodoroPage
         }
     }
 
@@ -121,22 +146,16 @@ struct MainMenuView: View {
 
             Divider()
 
-            // Gamification-Strip (über Pomodoro)
+            // Gamification-Strip
             if cal.authStatus == .fullAccess && !gam.activities.isEmpty {
                 gamificationStrip
                 Divider()
             }
 
-            // Pomodoro
-            PomodoroSection()
-                .environmentObject(tm)
-                .padding(.horizontal, 16)
-                .padding(.vertical, 10)
-
-            // Top-Aktivitäten (unter Pomodoro)
+            // Top-Aktivitäten
             if cal.authStatus == .fullAccess && !gam.activities.isEmpty {
-                Divider()
                 topActivitiesSection
+                Divider()
             }
 
             Divider()
@@ -156,6 +175,18 @@ struct MainMenuView: View {
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 8)
+        }
+    }
+
+    // MARK: - Pomodoro-Seite
+
+    private var pomodoroPage: some View {
+        VStack(spacing: 0) {
+            PomodoroSection()
+                .environmentObject(tm)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 16)
+            Spacer()
         }
     }
 
@@ -223,7 +254,10 @@ struct MainMenuView: View {
     // MARK: - Top-Aktivitäten
 
     private var topActivitiesSection: some View {
-        VStack(spacing: 0) {
+        let visible = Array(gam.activities
+            .filter { $0.count >= gam.minimumOccurrences }
+            .prefix(2))
+        return VStack(spacing: 0) {
             HStack {
                 Text("Top-Aktivitäten".uppercased())
                     .font(.system(size: 10, weight: .semibold))
@@ -241,32 +275,10 @@ struct MainMenuView: View {
             }
             .padding(.horizontal, 16)
             .padding(.top, 10)
-            .padding(.bottom, 4)
+            .padding(.bottom, 2)
 
-            ForEach(Array(gam.activities.prefix(2))) { act in
-                HStack(spacing: 10) {
-                    ZStack {
-                        Circle()
-                            .fill(Color.accentColor.opacity(0.1))
-                            .frame(width: 26, height: 26)
-                        Text("\(act.activityLevel)")
-                            .font(.system(size: 10, weight: .bold))
-                            .foregroundStyle(Color.accentColor)
-                    }
-                    Text(act.title)
-                        .font(.system(size: 12))
-                        .lineLimit(1)
-                    Spacer()
-                    VStack(alignment: .trailing, spacing: 1) {
-                        Text("\(act.count)×")
-                            .font(.system(size: 11, weight: .semibold, design: .monospaced))
-                        Text("+\(act.earnedXP) XP")
-                            .font(.system(size: 9))
-                            .foregroundStyle(.yellow.opacity(0.8))
-                    }
-                }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 5)
+            ForEach(visible) { act in
+                ActivityDetailRow(activity: act)
             }
             .padding(.bottom, 4)
         }

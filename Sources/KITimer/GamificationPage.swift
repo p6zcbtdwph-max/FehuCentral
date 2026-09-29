@@ -109,7 +109,8 @@ struct GamificationPage: View {
     // MARK: - Aktivitätenliste
 
     private var activityList: some View {
-        VStack(spacing: 0) {
+        let filtered = gam.activities.filter { $0.count >= gam.minimumOccurrences }
+        return VStack(spacing: 0) {
             HStack {
                 Text("Aktivitäten".uppercased())
                     .font(.system(size: 10, weight: .semibold)).foregroundStyle(.secondary)
@@ -124,7 +125,7 @@ struct GamificationPage: View {
             .padding(.top, 12)
             .padding(.bottom, 6)
 
-            ForEach(gam.activities) { activity in
+            ForEach(filtered) { activity in
                 ActivityDetailRow(activity: activity)
                     .environmentObject(gam)
             }
