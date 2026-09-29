@@ -247,9 +247,11 @@ struct GamificationPage: View {
 struct ActivityDetailRow: View {
     let activity: ActivityStat
     @EnvironmentObject var gam: GamificationManager
-    @State private var hovered   = false
-    @State private var showEdit  = false
-    @State private var editXPH   = 100
+    @State private var hovered    = false
+    @State private var showEdit   = false
+    @State private var editXPH    = 100
+    @State private var editTitle  = ""
+    @State private var showMerge  = false
 
     var body: some View {
         HStack(spacing: 8) {
@@ -273,7 +275,7 @@ struct ActivityDetailRow: View {
             Spacer()
 
             // XP/h — Spalte, klickbar
-            Button(action: { editXPH = activity.xpPerHour; showEdit = true }) {
+            Button(action: { editXPH = activity.xpPerHour; editTitle = activity.title; showMerge = false; showEdit = true }) {
                 VStack(alignment: .trailing, spacing: 1) {
                     Text("\(activity.xpPerHour) XP/h")
                         .font(.system(size: 10, weight: .semibold, design: .monospaced))
@@ -302,7 +304,7 @@ struct ActivityDetailRow: View {
         .background(hovered ? Color.secondary.opacity(0.06) : Color.clear)
         .contentShape(Rectangle())
         .onHover { hovered = $0 }
-        .onTapGesture { editXPH = activity.xpPerHour; showEdit = true }
+        .onTapGesture { editXPH = activity.xpPerHour; editTitle = activity.title; showMerge = false; showEdit = true }
     }
 
     private var tierBadgeSmall: some View {
@@ -334,10 +336,17 @@ struct ActivityDetailRow: View {
 
     private var xpEditor: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text(activity.title)
-                .font(.system(size: 12, weight: .semibold))
-                .lineLimit(1)
 
+            // Umbenennen
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Name")
+                    .font(.system(size: 10)).foregroundStyle(.secondary)
+                TextField("Aktivitätsname", text: $editTitle)
+                    .textFieldStyle(.roundedBorder)
+                    .font(.system(size: 12))
+            }
+
+            // XP/h
             VStack(alignment: .leading, spacing: 6) {
                 Text("XP pro Stunde")
                     .font(.system(size: 10)).foregroundStyle(.secondary)
@@ -350,12 +359,70 @@ struct ActivityDetailRow: View {
                 }
             }
 
+            // Zusammenlegen
+            VStack(alignment: .leading, spacing: 6) {
+                Button(action: { showMerge.toggle() }) {
+                    HStack(spacing: 4) {
+                        Image(systemName: showMerge ? "chevron.down" : "chevron.right")
+                            .font(.system(size: 10))
+                        Text("Zusammenlegen mit…")
+                            .font(.system(size: 11))
+                    }
+                    .foregroundStyle(Color.accentColor)
+                }
+                .buttonStyle(.plain)
+
+                if showMerge {
+                    let others = gam.activities.filter { $0.title != activity.title }
+                    if others.isEmpty {
+                        Text("Keine weiteren Aktivitäten")
+                            .font(.system(size: 10)).foregroundStyle(.tertiary)
+                            .padding(.horizontal, 6)
+                    } else {
+                        ScrollView {
+                            VStack(spacing: 0) {
+                                ForEach(others) { other in
+                                    Button(action: {
+                                        gam.mergeActivities(sources: [other.title], into: activity.title)
+                                        showEdit = false
+                                    }) {
+                                        HStack {
+                                            Text(other.title)
+                                                .font(.system(size: 11))
+                                                .lineLimit(1)
+                                            Spacer()
+                                            Text("\(other.count)×")
+                                                .font(.system(size: 10))
+                                                .foregroundStyle(.secondary)
+                                        }
+                                        .padding(.horizontal, 8)
+                                        .padding(.vertical, 5)
+                                        .contentShape(Rectangle())
+                                    }
+                                    .buttonStyle(.plain)
+                                }
+                            }
+                        }
+                        .frame(maxHeight: 120)
+                        .background(Color.secondary.opacity(0.06))
+                        .clipShape(RoundedRectangle(cornerRadius: 6))
+                    }
+                }
+            }
+
+            // Aktionsbuttons
             HStack(spacing: 8) {
                 Button("Speichern") {
-                    gam.setXPPerHour(editXPH, for: activity.title)
+                    let trimmed = editTitle.trimmingCharacters(in: .whitespaces)
+                    let finalTitle = trimmed.isEmpty ? activity.title : trimmed
+                    if finalTitle != activity.title {
+                        gam.renameActivity(from: activity.title, to: finalTitle)
+                    }
+                    gam.setXPPerHour(editXPH, for: finalTitle)
                     showEdit = false
                 }
                 .buttonStyle(.borderedProminent).controlSize(.small)
+                .disabled(editTitle.trimmingCharacters(in: .whitespaces).isEmpty)
 
                 Button("Sperren") {
                     gam.addToBlacklist(activity.title)
@@ -366,6 +433,6 @@ struct ActivityDetailRow: View {
             }
         }
         .padding(14)
-        .frame(width: 210)
+        .frame(width: 240)
     }
 }

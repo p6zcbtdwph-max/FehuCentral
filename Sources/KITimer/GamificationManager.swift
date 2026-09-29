@@ -200,6 +200,46 @@ class GamificationManager: ObservableObject {
         refresh()
     }
 
+    // MARK: - Umbenennen & Zusammenlegen
+
+    func renameActivity(from old: String, to new: String) {
+        let trimmed = new.trimmingCharacters(in: .whitespaces)
+        guard !trimmed.isEmpty, trimmed != old else { return }
+        if recognizedTitles.contains(trimmed) {
+            mergeActivities(sources: [old], into: trimmed)
+        } else {
+            recognizedTitles.remove(old)
+            recognizedTitles.insert(trimmed)
+            if let xph = xpPerHourMap.removeValue(forKey: old) {
+                xpPerHourMap[trimmed] = xph
+            }
+            if let i = activities.firstIndex(where: { $0.title == old }) {
+                activities[i].title = trimmed
+            }
+            saveXPMap(); saveRecognized(); save()
+        }
+    }
+
+    func mergeActivities(sources: [String], into target: String) {
+        var addCount = 0, addMins = 0
+        for title in sources where title != target {
+            if let act = activities.first(where: { $0.title == title }) {
+                addCount += act.count
+                addMins  += act.totalMinutes
+            }
+            recognizedTitles.remove(title)
+            xpPerHourMap.removeValue(forKey: title)
+        }
+        recognizedTitles.insert(target)
+        if let i = activities.firstIndex(where: { $0.title == target }) {
+            activities[i].count        += addCount
+            activities[i].totalMinutes += addMins
+        }
+        activities.removeAll { sources.contains($0.title) && $0.title != target }
+        activities.sort { $0.count > $1.count }
+        saveXPMap(); saveRecognized(); save()
+    }
+
     // MARK: - XP/h pro Aktivität
 
     func setXPPerHour(_ xph: Int, for title: String) {
