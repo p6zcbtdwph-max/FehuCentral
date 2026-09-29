@@ -102,7 +102,7 @@ struct MainMenuView: View {
                 CircleRingView(systemImage: "arrow.circlepath",     progress: tm.yearProgress,  label: "Jahr",  remainingText: tm.yearRemainingText,  daysRemaining: tm.yearDaysRemaining)
             }
             .padding(.horizontal, 8)
-            .padding(.vertical, 5)
+            .padding(.vertical, 6)
 
             // Countdown-Kreise (kompakter)
             let upcoming = tm.countdowns.filter { $0.daysRemaining() >= 0 }

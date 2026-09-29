@@ -19,40 +19,32 @@ struct CircleRingView: View {
     }
 
     var body: some View {
-        VStack(spacing: 3) {
-            ZStack {
-                Circle()
-                    .stroke(Color.secondary.opacity(0.12), lineWidth: 3.5)
+        ZStack {
+            Circle()
+                .stroke(Color.secondary.opacity(0.12), lineWidth: 4)
 
-                Circle()
-                    .trim(from: 0, to: progress)
-                    .stroke(
-                        ringColor,
-                        style: StrokeStyle(lineWidth: 3.5, lineCap: .round)
-                    )
-                    .rotationEffect(.degrees(-90))
-                    .animation(.easeInOut(duration: 0.5), value: progress)
+            Circle()
+                .trim(from: 0, to: progress)
+                .stroke(ringColor, style: StrokeStyle(lineWidth: 4, lineCap: .round))
+                .rotationEffect(.degrees(-90))
+                .animation(.easeInOut(duration: 0.5), value: progress)
 
-                Image(systemName: systemImage)
-                    .font(.system(size: 11, weight: .medium))
-                    .foregroundStyle(.primary)
-            }
-            .frame(width: 36, height: 36)
-
-            Text("\(Int(progress * 100))%")
-                .font(.system(size: 9, weight: .semibold, design: .monospaced))
-                .foregroundStyle(ringColor)
-
-            Text(label)
-                .font(.system(size: 8))
-                .foregroundStyle(.secondary)
-
-            if let days = daysRemaining {
-                Text("\(days)d")
-                    .font(.system(size: 8, design: .monospaced))
-                    .foregroundStyle(.secondary.opacity(0.7))
+            VStack(spacing: 1) {
+                Text("\(Int(progress * 100))%")
+                    .font(.system(size: daysRemaining != nil ? 11 : 12,
+                                  weight: .bold, design: .monospaced))
+                    .foregroundStyle(ringColor)
+                Text(label)
+                    .font(.system(size: 8))
+                    .foregroundStyle(.secondary)
+                if let days = daysRemaining {
+                    Text("\(days)d")
+                        .font(.system(size: 7, design: .monospaced))
+                        .foregroundStyle(.secondary.opacity(0.65))
+                }
             }
         }
+        .frame(width: 56, height: 56)
         .help(remainingText)
         .frame(maxWidth: .infinity)
     }
