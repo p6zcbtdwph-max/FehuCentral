@@ -6,6 +6,17 @@ Native macOS menubar app for daily time awareness and productivity tracking. Bui
 
 ---
 
+## Screenshots
+
+<table>
+  <tr>
+    <td><img src="screenshots/main.png" width="280" alt="Main screen"/><br><sub>Hauptseite</sub></td>
+    <td><img src="screenshots/aktivitaeten.png" width="280" alt="Aktivitäten"/><br><sub>Aktivitäten</sub></td>
+  </tr>
+</table>
+
+---
+
 ## What it does
 
 The menubar shows a live countdown to the end of your workday, next to the Fehu rune (ᚠ). Opening the popup gives you a full picture of where you stand in the day, week, month, and year — plus everything else.
