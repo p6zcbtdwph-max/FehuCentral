@@ -163,11 +163,18 @@ class TimeManager: ObservableObject {
         let e = calendar.date(byAdding: .weekOfYear, value: 1, to: s)!
         return max(0, min(1, now.timeIntervalSince(s) / e.timeIntervalSince(s)))
     }
-    var weekRemainingText: String {
+    var weekDaysRemaining: Int {
         let s = calendar.date(from: calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: now))!
         let e = calendar.date(byAdding: .weekOfYear, value: 1, to: s)!
-        let days = calendar.dateComponents([.day], from: now, to: e).day ?? 0
-        if days == 0 { return "\(calendar.dateComponents([.hour], from: now, to: e).hour ?? 0)h verbleibend" }
+        return max(0, calendar.dateComponents([.day], from: now, to: e).day ?? 0)
+    }
+    var weekRemainingText: String {
+        let days = weekDaysRemaining
+        if days == 0 {
+            let s = calendar.date(from: calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: now))!
+            let e = calendar.date(byAdding: .weekOfYear, value: 1, to: s)!
+            return "\(calendar.dateComponents([.hour], from: now, to: e).hour ?? 0)h verbleibend"
+        }
         return "\(days) \(days == 1 ? "Tag" : "Tage") verbleibend"
     }
 
@@ -177,10 +184,13 @@ class TimeManager: ObservableObject {
         let e = calendar.date(byAdding: .month, value: 1, to: s)!
         return max(0, min(1, now.timeIntervalSince(s) / e.timeIntervalSince(s)))
     }
-    var monthRemainingText: String {
+    var monthDaysRemaining: Int {
         let s = calendar.date(from: calendar.dateComponents([.year, .month], from: now))!
         let e = calendar.date(byAdding: .month, value: 1, to: s)!
-        let d = calendar.dateComponents([.day], from: now, to: e).day ?? 0
+        return max(0, calendar.dateComponents([.day], from: now, to: e).day ?? 0)
+    }
+    var monthRemainingText: String {
+        let d = monthDaysRemaining
         return "\(d) \(d == 1 ? "Tag" : "Tage") verbleibend"
     }
 
@@ -190,10 +200,13 @@ class TimeManager: ObservableObject {
         let e = calendar.date(byAdding: .year, value: 1, to: s)!
         return max(0, min(1, now.timeIntervalSince(s) / e.timeIntervalSince(s)))
     }
-    var yearRemainingText: String {
+    var yearDaysRemaining: Int {
         let s = calendar.date(from: calendar.dateComponents([.year], from: now))!
         let e = calendar.date(byAdding: .year, value: 1, to: s)!
-        let d = calendar.dateComponents([.day], from: now, to: e).day ?? 0
+        return max(0, calendar.dateComponents([.day], from: now, to: e).day ?? 0)
+    }
+    var yearRemainingText: String {
+        let d = yearDaysRemaining
         return "\(d) Tage verbleibend"
     }
 

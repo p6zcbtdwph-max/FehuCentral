@@ -1,5 +1,6 @@
 import Foundation
 import EventKit
+import Combine
 
 struct ActivityStat: Codable, Identifiable {
     var title: String
@@ -54,6 +55,7 @@ class GamificationManager: ObservableObject {
     private var recognizedTitles: Set<String> = []
     private var xpPerHourMap: [String: Int]   = [:]
     private let store = EKEventStore()
+    private var storeObserver: AnyCancellable?
 
     var totalXP: Int        { activities.reduce(0) { $0 + $1.earnedXP } }
     var overallLevel: Int   { Self.level(forXP: totalXP) }      // unbegrenzt
@@ -106,7 +108,14 @@ class GamificationManager: ObservableObject {
 
     // MARK: - Init
 
-    init() { load(); refresh() }
+    init() {
+        load()
+        refresh()
+        storeObserver = NotificationCenter.default
+            .publisher(for: .EKEventStoreChanged)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in self?.refresh() }
+    }
 
     // MARK: - Refresh
 

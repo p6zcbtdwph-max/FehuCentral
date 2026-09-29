@@ -97,12 +97,12 @@ struct MainMenuView: View {
             // Fortschritts-Ringe (kompakter)
             HStack(spacing: 0) {
                 CircleRingView(systemImage: "sun.max.fill",         progress: tm.dayProgress,   label: "Tag",   remainingText: tm.dayRemainingText)
-                CircleRingView(systemImage: "calendar.badge.clock", progress: tm.weekProgress,  label: "Woche", remainingText: tm.weekRemainingText)
-                CircleRingView(systemImage: "calendar",             progress: tm.monthProgress, label: "Monat", remainingText: tm.monthRemainingText)
-                CircleRingView(systemImage: "arrow.circlepath",     progress: tm.yearProgress,  label: "Jahr",  remainingText: tm.yearRemainingText)
+                CircleRingView(systemImage: "calendar.badge.clock", progress: tm.weekProgress,  label: "Woche", remainingText: tm.weekRemainingText,  daysRemaining: tm.weekDaysRemaining)
+                CircleRingView(systemImage: "calendar",             progress: tm.monthProgress, label: "Monat", remainingText: tm.monthRemainingText, daysRemaining: tm.monthDaysRemaining)
+                CircleRingView(systemImage: "arrow.circlepath",     progress: tm.yearProgress,  label: "Jahr",  remainingText: tm.yearRemainingText,  daysRemaining: tm.yearDaysRemaining)
             }
             .padding(.horizontal, 8)
-            .padding(.vertical, 8)
+            .padding(.vertical, 5)
 
             // Countdown-Kreise (kompakter)
             let upcoming = tm.countdowns.filter { $0.daysRemaining() >= 0 }

@@ -1,4 +1,5 @@
 import SwiftUI
+import AppKit
 
 @main
 struct KITimerApp: App {
@@ -20,7 +21,7 @@ struct KITimerApp: App {
                     .monospacedDigit()
                     .font(.system(size: 12, weight: .medium))
                 Text("ᚠ")
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(Font(NSFont(name: "Arial Unicode MS", size: 14) ?? NSFont.systemFont(ofSize: 14, weight: .semibold)))
             }
         }
         .menuBarExtraStyle(.window)
