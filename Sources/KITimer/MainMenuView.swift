@@ -82,6 +82,14 @@ struct MainMenuView: View {
                     .clipShape(Capsule())
                 }
                 .buttonStyle(.plain)
+
+                Button(action: { page = .clipboard }) {
+                    Image(systemName: "doc.on.clipboard")
+                        .font(.system(size: 13))
+                        .foregroundStyle(.secondary)
+                }
+                .buttonStyle(.plain)
+                .help("Ablage")
             }
 
             Button(action: { page = page == .settings ? .main : .settings }) {
@@ -172,15 +180,16 @@ struct MainMenuView: View {
             if cal.authStatus == .fullAccess && !gam.activities.isEmpty {
                 gamificationStrip
                 Divider()
+                dailyGoalRow
+                Divider()
                 topActivitiesSection
                 Divider()
             }
 
             // Navigation
             VStack(spacing: 4) {
-                NavCard(icon: "doc.on.clipboard", label: "Ablage") { page = .clipboard }
-                NavCard(icon: "calendar",         label: "Kalender") { page = .calendar }
-                NavCard(icon: "clock",            label: "Intervalle") { page = .intervals }
+                NavCard(icon: "calendar", label: "Kalender") { page = .calendar }
+                NavCard(icon: "clock",    label: "Intervalle") { page = .intervals }
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
@@ -267,6 +276,37 @@ struct MainMenuView: View {
             }
             .padding(.horizontal, 14)
             .padding(.vertical, 8)
+        }
+        .buttonStyle(.plain)
+    }
+
+    // MARK: - Tagesziel
+
+    private var dailyGoalRow: some View {
+        let reached = gam.dailyGoalReached
+        return Button(action: { page = .gamification }) {
+            HStack(spacing: 10) {
+                Image(systemName: reached ? "checkmark.circle.fill" : "target")
+                    .font(.system(size: 14))
+                    .foregroundStyle(reached ? Color.green : Color.secondary)
+                    .frame(width: 32)
+
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack {
+                        Text("Tagesziel")
+                            .font(.system(size: 11, weight: .semibold))
+                        Spacer()
+                        Text("\(GamificationManager.xpText(gam.todayXP)) / \(GamificationManager.xpText(gam.dailyGoal)) XP")
+                            .font(.system(size: 10, weight: .medium, design: .monospaced))
+                            .foregroundStyle(reached ? Color.green : Color.secondary)
+                    }
+                    XPBar(progress: gam.dailyGoalProgress,
+                          color: reached ? .green : .accentColor)
+                }
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 8)
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
     }

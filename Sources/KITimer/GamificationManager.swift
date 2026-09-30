@@ -52,12 +52,78 @@ class GamificationManager: ObservableObject {
         }
     }
 
+    // Minuten pro Tag und Aktivität (nur bis jetzt gelaufene Zeit), Grundlage für Tages-/Wochen-/Monats-XP
+    @Published var dayMinutes: [Date: [String: Int]] = [:]
+
+    @Published var goalAuto: Bool = true {
+        didSet { UserDefaults.standard.set(goalAuto, forKey: "gamGoalAuto") }
+    }
+    @Published var goalManualXP: Int = 300 {   // intern, 300 = 3 XP
+        didSet { UserDefaults.standard.set(goalManualXP, forKey: "gamGoalManual") }
+    }
+
     private var recognizedTitles: Set<String> = []
     private var xpPerHourMap: [String: Int]   = [:]
     private var storeObserver: AnyCancellable?
     private var accessObserver: AnyCancellable?
+    private var refreshTimer: AnyCancellable?
 
     var totalXP: Int        { activities.reduce(0) { $0 + $1.earnedXP } }
+
+    // MARK: - Tages-, Wochen-, Monats-XP und Tagesziel
+
+    private func xp(on day: Date, rates: [String: Int]) -> Int {
+        guard let perTitle = dayMinutes[Calendar.current.startOfDay(for: day)] else { return 0 }
+        let total = perTitle.reduce(0.0) { acc, entry in
+            guard let rate = rates[entry.key] else { return acc }
+            return acc + Double(entry.value) / 60.0 * Double(rate)
+        }
+        return Int(total)
+    }
+
+    private var xpRates: [String: Int] {
+        Dictionary(activities.map { ($0.title, $0.xpPerHour) }, uniquingKeysWith: { first, _ in first })
+    }
+
+    private func xp(in interval: DateInterval?) -> Int {
+        guard let interval else { return 0 }
+        let rates = xpRates
+        return dayMinutes.keys
+            .filter { interval.contains($0) }
+            .reduce(0) { $0 + xp(on: $1, rates: rates) }
+    }
+
+    // Intern wird in kleinen Einheiten gerechnet (100 = 1 angezeigtes XP), damit gespeicherte Werte gültig bleiben
+    static let xpDisplayDivisor = 100.0
+
+    static func xpText(_ raw: Int) -> String {
+        let v = Double(raw) / xpDisplayDivisor
+        return v.formatted(.number.precision(.fractionLength(0...(abs(v) < 10 ? 1 : 0))))
+    }
+
+    var todayXP: Int { xp(on: Date(), rates: xpRates) }
+    var weekXP:  Int { xp(in: Calendar.current.dateInterval(of: .weekOfYear, for: Date())) }
+    var monthXP: Int { xp(in: Calendar.current.dateInterval(of: .month, for: Date())) }
+
+    // Automatisch: Schnitt der letzten 7 Tage (nur Tage ab Startdatum) × 1,2, auf 0,5 XP gerundet, mindestens 1 XP
+    var dailyGoal: Int {
+        if !goalAuto { return goalManualXP }
+        let cal   = Calendar.current
+        let today = cal.startOfDay(for: Date())
+        let first = cal.startOfDay(for: historyStartDate)
+        let days  = (1...7)
+            .compactMap { cal.date(byAdding: .day, value: -$0, to: today) }
+            .filter { $0 >= first }
+        guard !days.isEmpty else { return 100 }
+        let rates = xpRates
+        let avg = Double(days.reduce(0) { $0 + xp(on: $1, rates: rates) }) / Double(days.count)
+        return max(100, Int((avg * 1.2 / 50).rounded(.up)) * 50)
+    }
+
+    var dailyGoalProgress: Double {
+        min(1, Double(todayXP) / Double(max(dailyGoal, 1)))
+    }
+    var dailyGoalReached: Bool { todayXP >= dailyGoal }
     var overallLevel: Int   { Self.level(forXP: totalXP) }      // unbegrenzt
     var overallProgress: Double { Self.levelProgress(forXP: totalXP) }
     var rank: RankInfo      { Self.rankInfo(forLevel: overallLevel) }
@@ -122,6 +188,11 @@ class GamificationManager: ObservableObject {
             .publisher(for: .calendarAccessGranted)
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in self?.refresh() }
+
+        // Laufende Termine wachsen im Lauf des Tages, Tageswechsel neu berechnen
+        refreshTimer = Timer.publish(every: 300, on: .main, in: .common)
+            .autoconnect()
+            .sink { [weak self] _ in self?.refresh() }
     }
 
     // MARK: - Refresh
@@ -150,6 +221,8 @@ class GamificationManager: ObservableObject {
         let events = store.events(matching: pred).filter { !$0.isAllDay }
 
         var titleMap: [String: (count: Int, mins: Int)] = [:]
+        var dayMin: [Date: [String: Int]] = [:]
+        let cal = Calendar.current
         for event in events {
             if excludedCals.contains(event.calendar.calendarIdentifier) { continue }
             guard let raw = event.title else { continue }
@@ -158,6 +231,12 @@ class GamificationManager: ObservableObject {
             let mins = max(0, Int(event.endDate.timeIntervalSince(event.startDate) / 60))
             let ex = titleMap[title] ?? (0, 0)
             titleMap[title] = (ex.count + 1, ex.mins + mins)
+
+            let elapsed = min(event.endDate, end).timeIntervalSince(event.startDate)
+            if elapsed > 0 {
+                let day = cal.startOfDay(for: event.startDate)
+                dayMin[day, default: [:]][title, default: 0] += Int(elapsed / 60)
+            }
         }
 
         var newRecognized = known
@@ -180,6 +259,7 @@ class GamificationManager: ObservableObject {
         DispatchQueue.main.async {
             self.recognizedTitles = newRecognized
             self.activities = stats
+            self.dayMinutes = dayMin
             self.streak     = streak
             self.save()
         }
@@ -314,6 +394,11 @@ class GamificationManager: ObservableObject {
         let stored = UserDefaults.standard.integer(forKey: "gamMinOccurrences")
         minimumOccurrences = stored >= 1 ? stored : 1
         streak = UserDefaults.standard.integer(forKey: "gamStreak")
+        if UserDefaults.standard.object(forKey: "gamGoalAuto") != nil {
+            goalAuto = UserDefaults.standard.bool(forKey: "gamGoalAuto")
+        }
+        let manual = UserDefaults.standard.integer(forKey: "gamGoalManual")
+        if manual > 0 { goalManualXP = manual }
         let ts = UserDefaults.standard.double(forKey: "gamHistoryStart")
         if ts > 0 { historyStartDate = Date(timeIntervalSince1970: ts) }
         // sonst bleibt der Default (Jahresanfang) erhalten

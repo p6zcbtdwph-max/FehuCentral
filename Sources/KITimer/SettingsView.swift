@@ -184,6 +184,31 @@ struct SettingsView: View {
                 .padding(.horizontal, 16)
                 .padding(.bottom, 8)
 
+            // Tagesziel
+            Divider().padding(.vertical, 10)
+            sectionLabel("Tagesziel")
+            toggleRow("Automatisch anpassen", binding: Binding(get: { gam.goalAuto }, set: { gam.goalAuto = $0 }))
+            if gam.goalAuto {
+                Text("Aktuell \(GamificationManager.xpText(gam.dailyGoal)) XP: Schnitt der letzten 7 Tage mal 1,2, mindestens 1 XP.")
+                    .font(.system(size: 10))
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.horizontal, 16)
+                    .padding(.bottom, 8)
+            } else {
+                HStack {
+                    Text("Ziel pro Tag").font(.system(size: 13))
+                    Spacer()
+                    Text("\(GamificationManager.xpText(gam.goalManualXP)) XP")
+                        .font(.system(size: 13, design: .monospaced))
+                        .foregroundStyle(.secondary)
+                        .frame(width: 56, alignment: .trailing)
+                    Stepper("", value: Binding(get: { gam.goalManualXP }, set: { gam.goalManualXP = $0 }),
+                            in: 50...2000, step: 50).labelsHidden()
+                }
+                .padding(.horizontal, 16).padding(.vertical, 4)
+            }
+
             // Kalender-Filter
             if cal.authStatus == .fullAccess && !cal.availableCalendars.isEmpty {
                 Divider().padding(.vertical, 10)

@@ -74,7 +74,7 @@ struct GamificationPage: View {
                 }
                 .frame(height: 8)
                 HStack {
-                    Text("\(gam.totalXP) XP")
+                    Text("\(GamificationManager.xpText(gam.totalXP)) XP")
                         .font(.system(size: 10)).foregroundStyle(.secondary)
                     Spacer()
                     if let next = gam.rank.nextRankLevel {
@@ -83,10 +83,34 @@ struct GamificationPage: View {
                     } else if gam.overallLevel < 20 {
                         EmptyView()
                     } else {
-                        Text("Level \(gam.overallLevel + 1) in \(GamificationManager.xpNeeded(toReach: gam.overallLevel + 1) - gam.totalXP) XP")
+                        Text("Level \(gam.overallLevel + 1) in \(GamificationManager.xpText(GamificationManager.xpNeeded(toReach: gam.overallLevel + 1) - gam.totalXP)) XP")
                             .font(.system(size: 10)).foregroundStyle(.secondary)
                     }
                 }
+            }
+
+            // Tagesziel
+            VStack(spacing: 4) {
+                HStack {
+                    Text("TAGESZIEL")
+                        .font(.system(size: 10, weight: .semibold)).foregroundStyle(.secondary)
+                    Spacer()
+                    if gam.dailyGoalReached {
+                        Image(systemName: "checkmark.circle.fill")
+                            .font(.system(size: 10)).foregroundStyle(.green)
+                    }
+                    Text("\(GamificationManager.xpText(gam.todayXP)) / \(GamificationManager.xpText(gam.dailyGoal)) XP")
+                        .font(.system(size: 10, weight: .semibold, design: .monospaced))
+                        .foregroundStyle(gam.dailyGoalReached ? .green : .primary)
+                }
+                XPBar(progress: gam.dailyGoalProgress,
+                      color: gam.dailyGoalReached ? .green : .accentColor, height: 8)
+                HStack {
+                    Text("Woche \(GamificationManager.xpText(gam.weekXP)) XP")
+                    Spacer()
+                    Text("Monat \(GamificationManager.xpText(gam.monthXP)) XP")
+                }
+                .font(.system(size: 10)).foregroundStyle(.secondary)
             }
 
             // Stat-Chips
@@ -242,6 +266,27 @@ struct GamificationPage: View {
     }
 }
 
+// MARK: - Fortschrittsbalken
+
+struct XPBar: View {
+    let progress: Double
+    let color: Color
+    var height: CGFloat = 5
+
+    var body: some View {
+        GeometryReader { geo in
+            ZStack(alignment: .leading) {
+                RoundedRectangle(cornerRadius: height / 2)
+                    .fill(Color.secondary.opacity(0.12))
+                RoundedRectangle(cornerRadius: height / 2)
+                    .fill(color.opacity(0.85))
+                    .frame(width: geo.size.width * max(0, min(1, progress)))
+            }
+        }
+        .frame(height: height)
+    }
+}
+
 // MARK: - Einzelne Aktivitätszeile
 
 struct ActivityDetailRow: View {
@@ -277,10 +322,10 @@ struct ActivityDetailRow: View {
             // XP/h — Spalte, klickbar
             Button(action: { editXPH = activity.xpPerHour; editTitle = activity.title; showMerge = false; showEdit = true }) {
                 VStack(alignment: .trailing, spacing: 1) {
-                    Text("\(activity.xpPerHour) XP/h")
+                    Text("\(GamificationManager.xpText(activity.xpPerHour)) XP/h")
                         .font(.system(size: 10, weight: .semibold, design: .monospaced))
                         .foregroundStyle(Color.accentColor)
-                    Text("+\(activity.earnedXP) XP")
+                    Text("+\(GamificationManager.xpText(activity.earnedXP)) XP")
                         .font(.system(size: 9))
                         .foregroundStyle(.yellow.opacity(0.85))
                 }
@@ -351,7 +396,7 @@ struct ActivityDetailRow: View {
                 Text("XP pro Stunde")
                     .font(.system(size: 10)).foregroundStyle(.secondary)
                 HStack {
-                    Text("\(editXPH) XP/h")
+                    Text("\(GamificationManager.xpText(editXPH)) XP/h")
                         .font(.system(size: 13, weight: .semibold, design: .monospaced))
                         .frame(width: 80)
                     Stepper("", value: $editXPH, in: 10...500, step: 10)
