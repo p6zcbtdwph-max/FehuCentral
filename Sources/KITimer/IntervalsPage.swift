@@ -129,7 +129,7 @@ struct IntervalRowView: View {
                 .frame(height: 5)
                 .padding(.leading, 14)
 
-                Text(remainingText)
+                Text("\(remainingText) · \(max(0, min(100, Int(((1 - progress) * 100).rounded()))))% übrig")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .padding(.leading, 14)

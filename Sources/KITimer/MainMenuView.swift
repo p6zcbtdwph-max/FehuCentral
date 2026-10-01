@@ -42,7 +42,7 @@ struct OpaqueWindowFix: NSViewRepresentable {
 }
 
 enum MenuPage {
-    case main, calendar, countdowns, intervals, clipboard, settings, gamification, pomodoro
+    case main, calendar, times, clipboard, settings, gamification, pomodoro
 }
 
 struct MainMenuView: View {
@@ -51,6 +51,7 @@ struct MainMenuView: View {
     @EnvironmentObject var cal:  CalendarManager
     @EnvironmentObject var gam:  GamificationManager
     @State private var page: MenuPage = .main
+    @State private var timesTab: TimesTab = .countdowns
 
     var body: some View {
         VStack(spacing: 0) {
@@ -89,8 +90,7 @@ struct MainMenuView: View {
 
             pomodoroButton
             TopBarIcon(icon: "doc.on.clipboard", label: "Ablage",        active: page == .clipboard) { toggle(.clipboard) }
-            TopBarIcon(icon: "calendar",         label: "Kalender",      active: page == .calendar)  { toggle(.calendar) }
-            TopBarIcon(icon: "clock",            label: "Intervalle",    active: page == .intervals) { toggle(.intervals) }
+            TopBarIcon(icon: "hourglass",        label: "Countdown & Intervalle", active: page == .times) { toggle(.times) }
             TopBarIcon(icon: "gearshape",        label: "Einstellungen", active: page == .settings)  { toggle(.settings) }
         }
         .padding(.horizontal, 12)
@@ -101,26 +101,31 @@ struct MainMenuView: View {
         page = page == target ? .main : target
     }
 
-    @ViewBuilder
     private var pomodoroButton: some View {
-        if tm.pomodoroPhase != .idle {
-            Button(action: { toggle(.pomodoro) }) {
-                HStack(spacing: 3) {
-                    Text(tm.pomodoroPhase == .work ? "🍅" : "☕")
-                    Text(tm.pomodoroDisplayText)
-                        .font(.system(size: 11, weight: .semibold, design: .monospaced))
+        let running = tm.pomodoroPhase != .idle
+        let onPage  = page == .pomodoro
+        return Button(action: { toggle(.pomodoro) }) {
+            Group {
+                if running {
+                    HStack(spacing: 3) {
+                        Text(tm.pomodoroPhase == .work ? "🍅" : "☕")
+                        Text(tm.pomodoroDisplayText)
+                            .font(.system(size: 11, weight: .semibold, design: .monospaced))
+                    }
+                } else {
+                    Text("Pomodoro")
+                        .font(.system(size: 11, weight: .medium))
                 }
-                .padding(.horizontal, 8)
-                .frame(height: 26)
-                .background(Color.red.opacity(page == .pomodoro ? 0.22 : 0.12))
-                .foregroundStyle(Color.red)
-                .clipShape(Capsule())
             }
-            .buttonStyle(.plain)
-            .help("Pomodoro")
-        } else {
-            TopBarIcon(icon: "timer", label: "Pomodoro", active: page == .pomodoro) { toggle(.pomodoro) }
+            .padding(.horizontal, 9)
+            .frame(height: 24)
+            .background(running ? Color.red.opacity(onPage ? 0.22 : 0.12)
+                                : (onPage ? Color.accentColor.opacity(0.14) : Color.secondary.opacity(0.09)))
+            .foregroundStyle(running ? Color.red : (onPage ? Color.accentColor : Color.secondary))
+            .clipShape(Capsule())
         }
+        .buttonStyle(.plain)
+        .help("Pomodoro")
     }
 
     private var subHeader: some View {
@@ -145,8 +150,7 @@ struct MainMenuView: View {
         case .main:         return "Fehu Central"
         case .clipboard:    return "Ablage"
         case .calendar:     return "Kalender"
-        case .countdowns:   return "Countdown"
-        case .intervals:    return "Intervalle"
+        case .times:        return "Countdown & Intervalle"
         case .settings:     return "Einstellungen"
         case .gamification: return "Aktivitäten"
         case .pomodoro:     return "Pomodoro"
@@ -161,9 +165,8 @@ struct MainMenuView: View {
         case .main:         mainContent
         case .clipboard:    ClipboardPage().environmentObject(clip)
         case .calendar:     CalendarPage().environmentObject(cal)
-        case .countdowns:   CountdownsPage().environmentObject(tm)
-        case .intervals:    IntervalsPage().environmentObject(tm)
-        case .settings:     SettingsView(navigate: { page = $0 }).environmentObject(tm).environmentObject(cal).environmentObject(gam)
+        case .times:        TimesPage(tab: $timesTab).environmentObject(tm)
+        case .settings:     SettingsView().environmentObject(tm).environmentObject(cal).environmentObject(gam)
         case .gamification: GamificationPage().environmentObject(gam).environmentObject(cal)
         case .pomodoro:     pomodoroPage
         }
@@ -213,7 +216,7 @@ struct MainMenuView: View {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 6) {
                         ForEach(upcoming) { cd in
-                            CountdownCircleView(event: cd) { page = .countdowns }
+                            CountdownCircleView(event: cd) { timesTab = .countdowns; page = .times }
                         }
                     }
                     .padding(.horizontal, 14)
@@ -304,11 +307,11 @@ struct MainMenuView: View {
                 Text(tm.intervalRemainingText(iv)).font(.system(size: 11)).foregroundStyle(.secondary)
             }
             Spacer()
-            CircularMiniProgress(progress: tm.intervalProgress(iv), color: .blue)
+            CircularMiniProgress(progress: tm.intervalProgress(iv), color: .blue, showRemaining: true)
         }
         .padding(.horizontal, 16).padding(.vertical, 7)
         .contentShape(Rectangle())
-        .onTapGesture { page = .intervals }
+        .onTapGesture { timesTab = .intervals; page = .times }
     }
 
     // MARK: - Banner: Kalender
@@ -321,7 +324,7 @@ struct MainMenuView: View {
                 Text(ev.timeRange).font(.system(size: 11)).foregroundStyle(.secondary)
             }
             Spacer()
-            CircularMiniProgress(progress: ev.progress, color: ev.calendarColor)
+            CircularMiniProgress(progress: ev.progress, color: ev.calendarColor, showRemaining: true)
         }
         .padding(.horizontal, 16).padding(.vertical, 7)
         .contentShape(Rectangle())
@@ -366,16 +369,28 @@ struct NavCard: View {
 struct CircularMiniProgress: View {
     let progress: Double
     let color: Color
+    var showRemaining = false
+
+    private var remainingPercent: Int { max(0, min(100, Int(((1 - progress) * 100).rounded()))) }
 
     var body: some View {
         ZStack {
-            Circle().stroke(color.opacity(0.15), lineWidth: 3)
+            Circle().stroke(color.opacity(0.15), lineWidth: showRemaining ? 3.5 : 3)
             Circle()
                 .trim(from: 0, to: progress)
-                .stroke(color, style: StrokeStyle(lineWidth: 3, lineCap: .round))
+                .stroke(color, style: StrokeStyle(lineWidth: showRemaining ? 3.5 : 3, lineCap: .round))
                 .rotationEffect(.degrees(-90))
+            if showRemaining {
+                VStack(spacing: 0) {
+                    Text("\(remainingPercent)%")
+                        .font(.system(size: 9, weight: .bold, design: .monospaced))
+                    Text("übrig")
+                        .font(.system(size: 6))
+                        .foregroundStyle(.secondary)
+                }
+            }
         }
-        .frame(width: 24, height: 24)
+        .frame(width: showRemaining ? 40 : 24, height: showRemaining ? 40 : 24)
     }
 }
 

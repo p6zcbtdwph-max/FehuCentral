@@ -5,7 +5,6 @@ struct SettingsView: View {
     @EnvironmentObject var tm:  TimeManager
     @EnvironmentObject var cal: CalendarManager
     @EnvironmentObject var gam: GamificationManager
-    var navigate: (MenuPage) -> Void = { _ in }
     @State private var tab: SettingsTab = .arbeitszeit
 
     enum SettingsTab: String, CaseIterable {
@@ -17,9 +16,6 @@ struct SettingsView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            werkzeugSection
-            Divider()
-
             HStack(spacing: 0) {
                 ForEach(SettingsTab.allCases, id: \.self) { t in
                     Button(action: { tab = t }) {
@@ -59,23 +55,6 @@ struct SettingsView: View {
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 8)
-        }
-    }
-
-    // MARK: - Werkzeuge
-
-    private var werkzeugSection: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            Text("Werkzeuge".uppercased())
-                .font(.system(size: 10, weight: .semibold))
-                .foregroundStyle(.secondary)
-                .padding(.horizontal, 16)
-                .padding(.top, 10)
-                .padding(.bottom, 6)
-
-            NavCard(icon: "calendar.badge.clock", label: "Countdown") { navigate(.countdowns) }
-                .padding(.horizontal, 12)
-                .padding(.bottom, 10)
         }
     }
 
