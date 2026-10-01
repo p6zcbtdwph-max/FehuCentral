@@ -1,23 +1,43 @@
 import SwiftUI
 import AppKit
 
-/// Setzt das unterliegende NSWindow auf fully opaque — verhindert den Frosted-Glass-Effekt
+/// Hält das Popover-Fenster und passt dessen Höhe exakt an den Inhalt an.
+/// SwiftUI vergrößert das MenuBarExtra-Fenster für hohe Seiten, verkleinert es aber nicht wieder.
+final class PopoverWindow {
+    static let shared = PopoverWindow()
+    weak var window: NSWindow?
+    private var lastHeight: CGFloat = 0
+
+    func attach(_ win: NSWindow) {
+        win.isOpaque = true
+        win.backgroundColor = .windowBackgroundColor
+        window = win
+        if lastHeight > 0 { resize(to: lastHeight) }
+    }
+
+    func resize(to height: CGFloat) {
+        guard height > 40 else { return }
+        lastHeight = height
+        DispatchQueue.main.async { [weak self] in
+            guard let win = self?.window else { return }
+            let target = win.frameRect(forContentRect: NSRect(x: 0, y: 0, width: 320, height: height)).height
+            var f = win.frame
+            guard abs(f.height - target) > 0.5 else { return }
+            f.origin.y += f.height - target   // obere Kante bleibt fest
+            f.size.height = target
+            win.setFrame(f, display: true, animate: false)
+        }
+    }
+}
+
 struct OpaqueWindowFix: NSViewRepresentable {
     func makeNSView(context: Context) -> NSView {
         let v = NSView()
-        DispatchQueue.main.async {
-            guard let win = v.window else { return }
-            win.isOpaque = true
-            win.backgroundColor = .windowBackgroundColor
-        }
+        DispatchQueue.main.async { if let win = v.window { PopoverWindow.shared.attach(win) } }
         return v
     }
     func updateNSView(_ nsView: NSView, context: Context) {
-        DispatchQueue.main.async {
-            guard let win = nsView.window else { return }
-            win.isOpaque = true
-            win.backgroundColor = .windowBackgroundColor
-        }
+        DispatchQueue.main.async { if let win = nsView.window { PopoverWindow.shared.attach(win) } }
     }
 }
 
@@ -36,71 +56,88 @@ struct MainMenuView: View {
         VStack(spacing: 0) {
             topBar
             Divider()
+            if page != .main {
+                subHeader
+                Divider()
+            }
             content
         }
         .frame(width: 320)
+        .fixedSize(horizontal: false, vertical: true)
+        .background(GeometryReader { geo in
+            Color.clear
+                .onAppear { PopoverWindow.shared.resize(to: geo.size.height) }
+                .onChange(of: geo.size.height) { _, h in PopoverWindow.shared.resize(to: h) }
+        })
+        .frame(maxHeight: .infinity, alignment: .top)
         .background(Color(NSColor.windowBackgroundColor))
         .background(OpaqueWindowFix().frame(width: 0, height: 0))
         .animation(.easeInOut(duration: 0.12), value: page)
     }
 
-    // MARK: - Obere Leiste
+    // MARK: - Obere Leiste (auf jeder Seite gleich)
 
     private var topBar: some View {
-        HStack(alignment: .center, spacing: 8) {
-            if page != .main {
-                Button(action: { page = .main }) {
-                    Image(systemName: "chevron.left")
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(.secondary)
-                }
-                .buttonStyle(.plain)
-            }
-
-            Text(pageTitle)
-                .font(.system(size: 15, weight: .semibold))
-                .frame(maxWidth: .infinity, alignment: page == .main ? .leading : .center)
-
-            if page == .main {
-                Button(action: { page = .pomodoro }) {
-                    Group {
-                        if tm.pomodoroPhase != .idle {
-                            HStack(spacing: 3) {
-                                Text(tm.pomodoroPhase == .work ? "🍅" : "☕")
-                                Text(tm.pomodoroDisplayText)
-                                    .font(.system(size: 11, weight: .semibold, design: .monospaced))
-                            }
-                        } else {
-                            Text("Pomodoro")
-                                .font(.system(size: 11, weight: .medium))
-                        }
-                    }
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 3)
-                    .background(tm.pomodoroPhase != .idle ? Color.red.opacity(0.12) : Color.secondary.opacity(0.08))
-                    .foregroundStyle(tm.pomodoroPhase != .idle ? Color.red : Color.secondary)
-                    .clipShape(Capsule())
-                }
-                .buttonStyle(.plain)
-
-                Button(action: { page = .clipboard }) {
-                    Image(systemName: "doc.on.clipboard")
-                        .font(.system(size: 13))
-                        .foregroundStyle(.secondary)
-                }
-                .buttonStyle(.plain)
-                .help("Ablage")
-            }
-
-            Button(action: { page = page == .settings ? .main : .settings }) {
-                Image(systemName: "gear")
-                    .font(.system(size: 13))
-                    .foregroundStyle(page == .settings ? Color.accentColor : .secondary)
+        HStack(alignment: .center, spacing: 2) {
+            Button(action: { page = .main }) {
+                Text("Fehu Central")
+                    .font(.system(size: 15, weight: .semibold))
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
+
+            pomodoroButton
+            TopBarIcon(icon: "doc.on.clipboard", label: "Ablage",        active: page == .clipboard) { toggle(.clipboard) }
+            TopBarIcon(icon: "calendar",         label: "Kalender",      active: page == .calendar)  { toggle(.calendar) }
+            TopBarIcon(icon: "clock",            label: "Intervalle",    active: page == .intervals) { toggle(.intervals) }
+            TopBarIcon(icon: "gearshape",        label: "Einstellungen", active: page == .settings)  { toggle(.settings) }
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 12)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+    }
+
+    private func toggle(_ target: MenuPage) {
+        page = page == target ? .main : target
+    }
+
+    @ViewBuilder
+    private var pomodoroButton: some View {
+        if tm.pomodoroPhase != .idle {
+            Button(action: { toggle(.pomodoro) }) {
+                HStack(spacing: 3) {
+                    Text(tm.pomodoroPhase == .work ? "🍅" : "☕")
+                    Text(tm.pomodoroDisplayText)
+                        .font(.system(size: 11, weight: .semibold, design: .monospaced))
+                }
+                .padding(.horizontal, 8)
+                .frame(height: 26)
+                .background(Color.red.opacity(page == .pomodoro ? 0.22 : 0.12))
+                .foregroundStyle(Color.red)
+                .clipShape(Capsule())
+            }
+            .buttonStyle(.plain)
+            .help("Pomodoro")
+        } else {
+            TopBarIcon(icon: "timer", label: "Pomodoro", active: page == .pomodoro) { toggle(.pomodoro) }
+        }
+    }
+
+    private var subHeader: some View {
+        Button(action: { page = .main }) {
+            HStack(spacing: 4) {
+                Image(systemName: "chevron.left")
+                    .font(.system(size: 10, weight: .semibold))
+                Text(pageTitle)
+                    .font(.system(size: 12, weight: .semibold))
+                Spacer()
+            }
+            .foregroundStyle(.secondary)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 6)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
     }
 
     private var pageTitle: String {
@@ -149,17 +186,27 @@ struct MainMenuView: View {
                 Divider()
             }
 
-            // Fortschritts-Ringe (kompakter)
+            // Fortschritts-Ringe: Zeit und Tagesziel
             HStack(spacing: 0) {
                 CircleRingView(systemImage: "sun.max.fill",         progress: tm.dayProgress,   label: "Tag",   remainingText: tm.dayRemainingText)
                 CircleRingView(systemImage: "calendar.badge.clock", progress: tm.weekProgress,  label: "Woche", remainingText: tm.weekRemainingText,  daysRemaining: tm.weekDaysRemaining)
                 CircleRingView(systemImage: "calendar",             progress: tm.monthProgress, label: "Monat", remainingText: tm.monthRemainingText, daysRemaining: tm.monthDaysRemaining)
                 CircleRingView(systemImage: "arrow.circlepath",     progress: tm.yearProgress,  label: "Jahr",  remainingText: tm.yearRemainingText,  daysRemaining: tm.yearDaysRemaining)
+                if hasGamification {
+                    CircleRingView(
+                        systemImage: "target",
+                        progress: gam.dailyGoalProgress,
+                        label: "Ziel",
+                        remainingText: "Tagesziel: \(GamificationManager.xpText(gam.todayXP)) von \(GamificationManager.xpText(gam.dailyGoal)) XP",
+                        subText: "\(GamificationManager.xpText(gam.todayXP))/\(GamificationManager.xpText(gam.dailyGoal))",
+                        color: gam.dailyGoalReached ? .green : .accentColor
+                    )
+                }
             }
-            .padding(.horizontal, 8)
+            .padding(.horizontal, 6)
             .padding(.vertical, 6)
 
-            // Countdown-Kreise (kompakter)
+            // Countdown-Kreise
             let upcoming = tm.countdowns.filter { $0.daysRemaining() >= 0 }
             if !upcoming.isEmpty {
                 Divider()
@@ -174,37 +221,16 @@ struct MainMenuView: View {
                 }
             }
 
-            Divider()
-
-            // Gamification-Strip
-            if cal.authStatus == .fullAccess && !gam.activities.isEmpty {
+            // Level: Klick öffnet alle Aktivitäten
+            if hasGamification {
+                Divider()
                 gamificationStrip
-                Divider()
-                dailyGoalRow
-                Divider()
-                topActivitiesSection
-                Divider()
             }
-
-            // Navigation
-            VStack(spacing: 4) {
-                NavCard(icon: "calendar", label: "Kalender") { page = .calendar }
-                NavCard(icon: "clock",    label: "Intervalle") { page = .intervals }
-            }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
-
-            Divider()
-
-            // Footer
-            HStack {
-                Spacer()
-                Button("Beenden") { NSApp.terminate(nil) }
-                    .font(.system(size: 11)).buttonStyle(.plain).foregroundStyle(.tertiary)
-            }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 8)
         }
+    }
+
+    private var hasGamification: Bool {
+        cal.authStatus == .fullAccess && !gam.activities.isEmpty
     }
 
     // MARK: - Pomodoro-Seite
@@ -258,18 +284,6 @@ struct MainMenuView: View {
 
                 Spacer()
 
-                if let top = gam.activities.first {
-                    VStack(alignment: .trailing, spacing: 1) {
-                        Text("\(top.count)×")
-                            .font(.system(size: 11, weight: .semibold))
-                        Text(top.title)
-                            .font(.system(size: 9))
-                            .foregroundStyle(.secondary)
-                            .lineLimit(1)
-                    }
-                    .frame(maxWidth: 80)
-                }
-
                 Image(systemName: "chevron.right")
                     .font(.system(size: 10))
                     .foregroundStyle(.tertiary)
@@ -278,70 +292,6 @@ struct MainMenuView: View {
             .padding(.vertical, 8)
         }
         .buttonStyle(.plain)
-    }
-
-    // MARK: - Tagesziel
-
-    private var dailyGoalRow: some View {
-        let reached = gam.dailyGoalReached
-        return Button(action: { page = .gamification }) {
-            HStack(spacing: 10) {
-                Image(systemName: reached ? "checkmark.circle.fill" : "target")
-                    .font(.system(size: 14))
-                    .foregroundStyle(reached ? Color.green : Color.secondary)
-                    .frame(width: 32)
-
-                VStack(alignment: .leading, spacing: 4) {
-                    HStack {
-                        Text("Tagesziel")
-                            .font(.system(size: 11, weight: .semibold))
-                        Spacer()
-                        Text("\(GamificationManager.xpText(gam.todayXP)) / \(GamificationManager.xpText(gam.dailyGoal)) XP")
-                            .font(.system(size: 10, weight: .medium, design: .monospaced))
-                            .foregroundStyle(reached ? Color.green : Color.secondary)
-                    }
-                    XPBar(progress: gam.dailyGoalProgress,
-                          color: reached ? .green : .accentColor)
-                }
-            }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 8)
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-    }
-
-    // MARK: - Top-Aktivitäten
-
-    private var topActivitiesSection: some View {
-        let visible = Array(gam.activities
-            .filter { $0.count >= gam.minimumOccurrences }
-            .prefix(2))
-        return VStack(spacing: 0) {
-            HStack {
-                Text("Top-Aktivitäten".uppercased())
-                    .font(.system(size: 10, weight: .semibold))
-                    .foregroundStyle(.secondary)
-                Spacer()
-                Button(action: { page = .gamification }) {
-                    HStack(spacing: 2) {
-                        Text("Alle")
-                        Image(systemName: "chevron.right").imageScale(.small)
-                    }
-                    .font(.system(size: 11))
-                    .foregroundStyle(Color.accentColor)
-                }
-                .buttonStyle(.plain)
-            }
-            .padding(.horizontal, 16)
-            .padding(.top, 10)
-            .padding(.bottom, 2)
-
-            ForEach(visible) { act in
-                ActivityDetailRow(activity: act)
-            }
-            .padding(.bottom, 4)
-        }
     }
 
     // MARK: - Banner: Intervall
@@ -426,5 +376,30 @@ struct CircularMiniProgress: View {
                 .rotationEffect(.degrees(-90))
         }
         .frame(width: 24, height: 24)
+    }
+}
+
+// MARK: - Icon-Button der Kopfleiste
+
+struct TopBarIcon: View {
+    let icon: String
+    let label: String
+    let active: Bool
+    let action: () -> Void
+    @State private var hovered = false
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: icon)
+                .font(.system(size: 13))
+                .foregroundStyle(active ? Color.accentColor : (hovered ? Color.primary : Color.secondary))
+                .frame(width: 26, height: 26)
+                .background(active ? Color.accentColor.opacity(0.14)
+                                   : (hovered ? Color.secondary.opacity(0.1) : Color.clear))
+                .clipShape(RoundedRectangle(cornerRadius: 7))
+        }
+        .buttonStyle(.plain)
+        .onHover { hovered = $0 }
+        .help(label)
     }
 }

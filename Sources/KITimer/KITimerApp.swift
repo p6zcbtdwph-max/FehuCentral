@@ -7,6 +7,10 @@ struct KITimerApp: App {
     @StateObject private var cal  = CalendarManager()
     @StateObject private var gam  = GamificationManager()
 
+    init() {
+        LegacyMigration.run()
+    }
+
     var body: some Scene {
         MenuBarExtra {
             MainMenuView()
@@ -21,6 +25,7 @@ struct KITimerApp: App {
                     .font(.system(size: 12, weight: .medium))
                 FehuRune(height: 14)
             }
+
         }
         .menuBarExtraStyle(.window)
     }

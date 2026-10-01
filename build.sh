@@ -24,7 +24,7 @@ cat > "$CONTENTS/Info.plist" << EOF
 <plist version="1.0">
 <dict>
     <key>CFBundleExecutable</key>         <string>KITimer</string>
-    <key>CFBundleIdentifier</key>         <string>de.fehu.central</string>
+    <key>CFBundleIdentifier</key>         <string>de.fehu.FehuCentral</string>
     <key>CFBundleName</key>               <string>Fehu Central</string>
     <key>CFBundleDisplayName</key>        <string>Fehu Central</string>
     <key>CFBundleVersion</key>            <string>$VERSION</string>

@@ -55,10 +55,10 @@ class GamificationManager: ObservableObject {
     // Minuten pro Tag und Aktivität (nur bis jetzt gelaufene Zeit), Grundlage für Tages-/Wochen-/Monats-XP
     @Published var dayMinutes: [Date: [String: Int]] = [:]
 
-    @Published var goalAuto: Bool = true {
+    @Published var goalAuto: Bool = false {
         didSet { UserDefaults.standard.set(goalAuto, forKey: "gamGoalAuto") }
     }
-    @Published var goalManualXP: Int = 300 {   // intern, 300 = 3 XP
+    @Published var goalManualXP: Int = 500 {   // intern, 500 = 5 XP
         didSet { UserDefaults.standard.set(goalManualXP, forKey: "gamGoalManual") }
     }
 
@@ -399,6 +399,12 @@ class GamificationManager: ObservableObject {
         }
         let manual = UserDefaults.standard.integer(forKey: "gamGoalManual")
         if manual > 0 { goalManualXP = manual }
+        // Einmalig: Tagesziel auf festen Standard von 5 XP setzen
+        if !UserDefaults.standard.bool(forKey: "gamGoalDefault5") {
+            goalAuto = false
+            goalManualXP = 500
+            UserDefaults.standard.set(true, forKey: "gamGoalDefault5")
+        }
         let ts = UserDefaults.standard.double(forKey: "gamHistoryStart")
         if ts > 0 { historyStartDate = Date(timeIntervalSince1970: ts) }
         // sonst bleibt der Default (Jahresanfang) erhalten

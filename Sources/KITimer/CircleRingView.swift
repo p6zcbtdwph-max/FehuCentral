@@ -8,8 +8,11 @@ struct CircleRingView: View {
     let label: String
     let remainingText: String
     var daysRemaining: Int? = nil
+    var subText: String? = nil
+    var color: Color? = nil
 
     private var ringColor: Color {
+        if let color { return color }
         switch progress {
         case ..<0.5:  return .green
         case ..<0.75: return Color(hue: 0.13, saturation: 0.95, brightness: 0.92)
@@ -31,13 +34,17 @@ struct CircleRingView: View {
 
             VStack(spacing: 1) {
                 Text("\(Int(progress * 100))%")
-                    .font(.system(size: daysRemaining != nil ? 11 : 12,
+                    .font(.system(size: (daysRemaining != nil || subText != nil) ? 11 : 12,
                                   weight: .bold, design: .monospaced))
                     .foregroundStyle(ringColor)
                 Text(label)
                     .font(.system(size: 8))
                     .foregroundStyle(.secondary)
-                if let days = daysRemaining {
+                if let subText {
+                    Text(subText)
+                        .font(.system(size: 7, design: .monospaced))
+                        .foregroundStyle(.secondary.opacity(0.65))
+                } else if let days = daysRemaining {
                     Text("\(days)d")
                         .font(.system(size: 7, design: .monospaced))
                         .foregroundStyle(.secondary.opacity(0.65))
@@ -76,12 +83,7 @@ struct CountdownCircleView: View {
         if days < 0  { return "vorbei" }
         if days == 0 { return "Heute" }
         if days == 1 { return "1 Tag" }
-        return "\(days)"
-    }
-
-    private var daysUnit: String {
-        if days <= 1 || days < 0 { return "" }
-        return "Tage"
+        return "\(days)d"
     }
 
     var body: some View {
@@ -96,21 +98,14 @@ struct CountdownCircleView: View {
                     .rotationEffect(.degrees(-90))
                     .animation(.easeInOut(duration: 0.4), value: ringProgress)
 
-                Text(event.emoji)
-                    .font(.system(size: 16))
-                    .opacity(0.18)
-
-                VStack(spacing: 1) {
+                VStack(spacing: 0) {
                     Text(daysLabel)
                         .font(.system(size: days > 99 ? 8 : 11,
                                       weight: .bold,
                                       design: .monospaced))
                         .foregroundStyle(days < 0 ? .secondary : .primary)
-                    if !daysUnit.isEmpty {
-                        Text(daysUnit)
-                            .font(.system(size: 6, weight: .medium))
-                            .foregroundStyle(.secondary)
-                    }
+                    Text(event.emoji)
+                        .font(.system(size: 9))
                     Text(event.name)
                         .font(.system(size: 7))
                         .foregroundStyle(.secondary)

@@ -49,6 +49,16 @@ struct SettingsView: View {
                 }
                 .padding(.top, 10)
             }
+            .frame(maxHeight: 420)
+
+            Divider()
+            HStack {
+                Spacer()
+                Button("Fehu Central beenden") { NSApp.terminate(nil) }
+                    .font(.system(size: 11)).buttonStyle(.plain).foregroundStyle(.secondary)
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 8)
         }
     }
 
@@ -63,12 +73,9 @@ struct SettingsView: View {
                 .padding(.top, 10)
                 .padding(.bottom, 6)
 
-            HStack(spacing: 8) {
-                NavCard(icon: "clock",                label: "Intervalle") { navigate(.intervals) }
-                NavCard(icon: "calendar.badge.clock", label: "Countdown")  { navigate(.countdowns) }
-            }
-            .padding(.horizontal, 12)
-            .padding(.bottom, 10)
+            NavCard(icon: "calendar.badge.clock", label: "Countdown") { navigate(.countdowns) }
+                .padding(.horizontal, 12)
+                .padding(.bottom, 10)
         }
     }
 

@@ -25,6 +25,7 @@ struct GamificationPage: View {
                     Spacer().frame(height: 12)
                 }
             }
+            .frame(maxHeight: 420)
             .onAppear { gam.refresh() }
         }
     }

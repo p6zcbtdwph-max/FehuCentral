@@ -72,6 +72,7 @@ struct IntervalsPage: View {
                     }
                     .padding(.vertical, 8)
                 }
+                .frame(maxHeight: 300)
             }
 
             Divider()
