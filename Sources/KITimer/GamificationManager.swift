@@ -2,6 +2,10 @@ import Foundation
 import EventKit
 import Combine
 
+enum ActivityPeriod: String, CaseIterable {
+    case week = "Woche", month = "Monat", year = "Jahr", total = "Gesamt"
+}
+
 struct ActivityStat: Codable, Identifiable {
     var title: String
     var count: Int
@@ -54,6 +58,11 @@ class GamificationManager: ObservableObject {
 
     // Minuten pro Tag und Aktivität (nur bis jetzt gelaufene Zeit), Grundlage für Tages-/Wochen-/Monats-XP
     @Published var dayMinutes: [Date: [String: Int]] = [:]
+    @Published var dayCounts:  [Date: [String: Int]] = [:]
+
+    @Published var period: ActivityPeriod = .total {
+        didSet { UserDefaults.standard.set(period.rawValue, forKey: "gamPeriod") }
+    }
 
     @Published var goalAuto: Bool = false {
         didSet { UserDefaults.standard.set(goalAuto, forKey: "gamGoalAuto") }
@@ -99,6 +108,27 @@ class GamificationManager: ObservableObject {
     static func xpText(_ raw: Int) -> String {
         let v = Double(raw) / xpDisplayDivisor
         return v.formatted(.number.precision(.fractionLength(0...(abs(v) < 10 ? 1 : 0))))
+    }
+
+    /// Aktivitäten für den gewählten Zeitraum; "Gesamt" entspricht allem seit dem Startdatum.
+    func stats(for period: ActivityPeriod) -> [ActivityStat] {
+        let base = activities.filter { $0.count >= minimumOccurrences }
+        guard period != .total else { return base }
+        let component: Calendar.Component = period == .week ? .weekOfYear : (period == .month ? .month : .year)
+        guard let interval = Calendar.current.dateInterval(of: component, for: Date()) else { return base }
+        let days = dayMinutes.keys.filter { interval.contains($0) }
+        var out: [ActivityStat] = []
+        for a in base {
+            var count = 0, minutes = 0
+            for d in days {
+                count   += dayCounts[d]?[a.title] ?? 0
+                minutes += dayMinutes[d]?[a.title] ?? 0
+            }
+            if count > 0 {
+                out.append(ActivityStat(title: a.title, count: count, totalMinutes: minutes, xpPerHour: a.xpPerHour))
+            }
+        }
+        return out.sorted { $0.count > $1.count }
     }
 
     var todayXP: Int { xp(on: Date(), rates: xpRates) }
@@ -222,6 +252,7 @@ class GamificationManager: ObservableObject {
 
         var titleMap: [String: (count: Int, mins: Int)] = [:]
         var dayMin: [Date: [String: Int]] = [:]
+        var dayCnt: [Date: [String: Int]] = [:]
         let cal = Calendar.current
         for event in events {
             if excludedCals.contains(event.calendar.calendarIdentifier) { continue }
@@ -236,6 +267,7 @@ class GamificationManager: ObservableObject {
             if elapsed > 0 {
                 let day = cal.startOfDay(for: event.startDate)
                 dayMin[day, default: [:]][title, default: 0] += Int(elapsed / 60)
+                dayCnt[day, default: [:]][title, default: 0] += 1
             }
         }
 
@@ -260,6 +292,7 @@ class GamificationManager: ObservableObject {
             self.recognizedTitles = newRecognized
             self.activities = stats
             self.dayMinutes = dayMin
+            self.dayCounts  = dayCnt
             self.streak     = streak
             self.save()
         }
@@ -394,6 +427,7 @@ class GamificationManager: ObservableObject {
         let stored = UserDefaults.standard.integer(forKey: "gamMinOccurrences")
         minimumOccurrences = stored >= 1 ? stored : 1
         streak = UserDefaults.standard.integer(forKey: "gamStreak")
+        if let raw = UserDefaults.standard.string(forKey: "gamPeriod"), let p = ActivityPeriod(rawValue: raw) { period = p }
         if UserDefaults.standard.object(forKey: "gamGoalAuto") != nil {
             goalAuto = UserDefaults.standard.bool(forKey: "gamGoalAuto")
         }

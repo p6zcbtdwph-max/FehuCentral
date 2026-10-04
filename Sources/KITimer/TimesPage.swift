@@ -3,6 +3,7 @@ import SwiftUI
 enum TimesTab: String, CaseIterable {
     case countdowns = "Countdown"
     case intervals  = "Intervalle"
+    case aiCycles   = "KI-Zyklen"
 }
 
 struct TimesPage: View {
@@ -24,6 +25,7 @@ struct TimesPage: View {
             switch tab {
             case .countdowns: CountdownsPage().environmentObject(tm)
             case .intervals:  IntervalsPage().environmentObject(tm)
+            case .aiCycles:   AICyclesPage()
             }
         }
     }

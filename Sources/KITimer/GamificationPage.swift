@@ -113,30 +113,21 @@ struct GamificationPage: View {
                 }
                 .font(.system(size: 10)).foregroundStyle(.secondary)
             }
-
-            // Stat-Chips
-            HStack(spacing: 8) {
-                statChip("\(gam.activities.count)", "Aktivitäten")
-                statChip("\(gam.activities.reduce(0) { $0 + $1.count })", "Termine")
-                statChip(formattedTotalTime, "Gesamt-Zeit")
-            }
         }
         .padding(.horizontal, 16)
         .padding(.top, 10)
         .padding(.bottom, 12)
     }
 
-    private var formattedTotalTime: String {
-        let total = gam.activities.reduce(0) { $0 + $1.totalMinutes }
-        let h = total / 60; let m = total % 60
-        if h > 0 { return "\(h)h \(m)m" }
-        return "\(m)m"
+    private func timeText(_ total: Int) -> String {
+        let h = total / 60, m = total % 60
+        return h > 0 ? "\(h)h \(m)m" : "\(m)m"
     }
 
     // MARK: - Aktivitätenliste
 
     private var activityList: some View {
-        let filtered = gam.activities.filter { $0.count >= gam.minimumOccurrences }
+        let filtered = gam.stats(for: gam.period)
         return VStack(spacing: 0) {
             HStack {
                 Text("Aktivitäten".uppercased())
@@ -151,6 +142,29 @@ struct GamificationPage: View {
             .padding(.horizontal, 16)
             .padding(.top, 12)
             .padding(.bottom, 6)
+
+            Picker("", selection: Binding(get: { gam.period }, set: { gam.period = $0 })) {
+                ForEach(ActivityPeriod.allCases, id: \.self) { Text($0.rawValue).tag($0) }
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+            .padding(.horizontal, 16)
+            .padding(.bottom, 8)
+
+            HStack(spacing: 6) {
+                statChip("\(filtered.count)", "Aktivitäten")
+                statChip("\(filtered.reduce(0) { $0 + $1.count })", "Termine")
+                statChip(timeText(filtered.reduce(0) { $0 + $1.totalMinutes }), "Zeit")
+                statChip(GamificationManager.xpText(filtered.reduce(0) { $0 + $1.earnedXP }), "XP")
+            }
+            .padding(.horizontal, 16)
+            .padding(.bottom, 6)
+
+            if filtered.isEmpty {
+                Text("Keine Aktivitäten in diesem Zeitraum")
+                    .font(.system(size: 11)).foregroundStyle(.secondary)
+                    .padding(.vertical, 16)
+            }
 
             ForEach(filtered) { activity in
                 ActivityDetailRow(activity: activity)
@@ -232,7 +246,7 @@ struct GamificationPage: View {
 
     private func statChip(_ value: String, _ label: String) -> some View {
         VStack(spacing: 2) {
-            Text(value).font(.system(size: 13, weight: .semibold))
+            Text(value).font(.system(size: 12, weight: .semibold)).lineLimit(1).minimumScaleFactor(0.8)
             Text(label).font(.system(size: 9)).foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity).padding(.vertical, 6)
@@ -353,8 +367,12 @@ struct ActivityDetailRow: View {
         .onTapGesture { editXPH = activity.xpPerHour; editTitle = activity.title; showMerge = false; showEdit = true }
     }
 
+    private var badgeLevel: Int {
+        gam.activities.first { $0.title == activity.title }?.activityLevel ?? activity.activityLevel
+    }
+
     private var tierBadgeSmall: some View {
-        let rank = GamificationManager.rankInfo(forLevel: activity.activityLevel)
+        let rank = GamificationManager.rankInfo(forLevel: badgeLevel)
         return ZStack {
             Circle()
                 .fill(tierColor.opacity(0.12))
@@ -371,7 +389,7 @@ struct ActivityDetailRow: View {
     }
 
     private var tierColor: Color {
-        switch activity.activityLevel {
+        switch badgeLevel {
         case 1...4:   return Color(red: 0.80, green: 0.52, blue: 0.25)
         case 5...8:   return Color(red: 0.65, green: 0.65, blue: 0.70)
         case 9...12:  return Color(red: 1.00, green: 0.78, blue: 0.00)

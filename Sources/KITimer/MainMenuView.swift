@@ -50,8 +50,10 @@ struct MainMenuView: View {
     @EnvironmentObject var clip: ClipboardManager
     @EnvironmentObject var cal:  CalendarManager
     @EnvironmentObject var gam:  GamificationManager
+    @EnvironmentObject var ai:   AICycleManager
     @State private var page: MenuPage = .main
     @State private var timesTab: TimesTab = .countdowns
+    @State private var showLimitEdit = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -165,7 +167,7 @@ struct MainMenuView: View {
         case .main:         mainContent
         case .clipboard:    ClipboardPage().environmentObject(clip)
         case .calendar:     CalendarPage().environmentObject(cal)
-        case .times:        TimesPage(tab: $timesTab).environmentObject(tm)
+        case .times:        TimesPage(tab: $timesTab).environmentObject(tm).environmentObject(ai)
         case .settings:     SettingsView().environmentObject(tm).environmentObject(cal).environmentObject(gam)
         case .gamification: GamificationPage().environmentObject(gam).environmentObject(cal)
         case .pomodoro:     pomodoroPage
@@ -183,8 +185,11 @@ struct MainMenuView: View {
                 Divider()
             }
 
-            // Banner: aktives Intervall
-            if let iv = tm.activeInterval {
+            // Banner: KI-Sitzung (auf Wunsch statt Intervall) oder aktives Intervall
+            if ai.enabled && ai.showSessionOnMain {
+                sessionBanner
+                Divider()
+            } else if let iv = tm.activeInterval {
                 activeBanner(iv)
                 Divider()
             }
@@ -222,6 +227,12 @@ struct MainMenuView: View {
                     .padding(.horizontal, 14)
                     .padding(.vertical, 6)
                 }
+            }
+
+            // KI-Limit: Verbrauch gegen Plan
+            if ai.enabled {
+                Divider()
+                limitRow
             }
 
             // Level: Klick öffnet alle Aktivitäten
@@ -295,6 +306,87 @@ struct MainMenuView: View {
             .padding(.vertical, 8)
         }
         .buttonStyle(.plain)
+    }
+
+    // MARK: - KI-Sitzung und Limit
+
+    private var sessionBanner: some View {
+        HStack(spacing: 10) {
+            RoundedRectangle(cornerRadius: 2).fill(Color.purple).frame(width: 3, height: 30)
+            if ai.sessionActive, let end = ai.sessionEnd {
+                VStack(alignment: .leading, spacing: 1) {
+                    Text("KI-Sitzung").font(.system(size: 12, weight: .semibold))
+                    Text("Reset in \(ai.sessionRemainingText) · \(end.formatted(.dateTime.hour().minute())) Uhr")
+                        .font(.system(size: 11)).foregroundStyle(.secondary)
+                }
+                Spacer()
+                CircularMiniProgress(progress: ai.sessionProgress, color: .purple, showRemaining: true)
+            } else {
+                VStack(alignment: .leading, spacing: 1) {
+                    Text("KI-Sitzung").font(.system(size: 12, weight: .semibold))
+                    Text(ai.sessionEnd == nil ? "Nicht gestartet" : "Abgelaufen")
+                        .font(.system(size: 11)).foregroundStyle(.secondary)
+                }
+                Spacer()
+                Button("Starten (\(ai.sessionHours) h)") { ai.startSession() }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.small)
+            }
+        }
+        .padding(.horizontal, 16).padding(.vertical, 7)
+        .contentShape(Rectangle())
+        .onTapGesture { timesTab = .aiCycles; page = .times }
+    }
+
+    private var limitRow: some View {
+        Button(action: { showLimitEdit = true }) {
+            HStack(spacing: 10) {
+                Image(systemName: "speedometer")
+                    .font(.system(size: 14))
+                    .foregroundStyle(ai.statusColor)
+                    .frame(width: 32)
+
+                VStack(alignment: .leading, spacing: 3) {
+                    HStack {
+                        Text("KI-Limit").font(.system(size: 11, weight: .semibold))
+                        Spacer()
+                        Text("\(AICycleManager.pct(ai.usedNow)) verbraucht · \(AICycleManager.pct(ai.freePercent)) frei")
+                            .font(.system(size: 10, weight: .medium, design: .monospaced))
+                            .foregroundStyle(.secondary)
+                    }
+                    LimitBar(used: ai.usedNow, target: ai.targetPercent, color: ai.statusColor)
+                    Text("\(ai.statusText) · Reset \(ai.weekEnd.formatted(.dateTime.weekday(.abbreviated).hour().minute()))")
+                        .font(.system(size: 9)).foregroundStyle(ai.statusColor)
+                }
+            }
+            .padding(.horizontal, 14).padding(.vertical, 8)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .popover(isPresented: $showLimitEdit, arrowEdge: .bottom) { limitEditor }
+    }
+
+    private var limitEditor: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Text("Verbrauch eintragen").font(.system(size: 12, weight: .semibold))
+                Spacer()
+                Text(AICycleManager.pct(ai.usedNow))
+                    .font(.system(size: 12, weight: .semibold, design: .monospaced))
+            }
+            Slider(value: Binding(get: { ai.usedNow }, set: { ai.setUsed($0.rounded()) }), in: 0...100)
+            Text("\(ai.statusText). Pro Tag sind \(AICycleManager.pct(ai.perDayPercent)) vorgesehen.")
+                .font(.system(size: 10)).foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            Button("Details") {
+                showLimitEdit = false
+                timesTab = .aiCycles
+                page = .times
+            }
+            .buttonStyle(.bordered).controlSize(.small)
+        }
+        .padding(14)
+        .frame(width: 240)
     }
 
     // MARK: - Banner: Intervall

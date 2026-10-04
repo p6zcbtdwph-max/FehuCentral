@@ -6,6 +6,7 @@ struct KITimerApp: App {
     @StateObject private var clip = ClipboardManager()
     @StateObject private var cal  = CalendarManager()
     @StateObject private var gam  = GamificationManager()
+    @StateObject private var ai   = AICycleManager()
 
     init() {
         LegacyMigration.run()
@@ -18,6 +19,7 @@ struct KITimerApp: App {
                 .environmentObject(clip)
                 .environmentObject(cal)
                 .environmentObject(gam)
+                .environmentObject(ai)
         } label: {
             HStack(spacing: 3) {
                 Text(tm.menuBarText)
