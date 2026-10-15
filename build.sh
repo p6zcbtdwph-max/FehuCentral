@@ -17,6 +17,8 @@ mkdir -p "$CONTENTS/Resources"
 
 cp .build/release/KITimer "$CONTENTS/MacOS/KITimer"
 chmod +x "$CONTENTS/MacOS/KITimer"
+# App-Icon aus dem Fehu-Finance-Launcher (scripts/make-app-logos.py)
+cp Resources/AppIcon.icns "$CONTENTS/Resources/AppIcon.icns"
 
 cat > "$CONTENTS/Info.plist" << EOF
 <?xml version="1.0" encoding="UTF-8"?>
@@ -29,6 +31,7 @@ cat > "$CONTENTS/Info.plist" << EOF
     <key>CFBundleDisplayName</key>        <string>Fehu Central</string>
     <key>CFBundleVersion</key>            <string>$VERSION</string>
     <key>CFBundleShortVersionString</key> <string>$VERSION</string>
+    <key>CFBundleIconFile</key>           <string>AppIcon</string>
     <key>NSPrincipalClass</key>           <string>NSApplication</string>
     <key>LSUIElement</key>                <true/>
     <key>NSHighResolutionCapable</key>    <true/>
